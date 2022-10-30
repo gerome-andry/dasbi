@@ -1,2 +1,2 @@
-# dasbi
-Data Assimilation via Simulation Based Inference
+# datsbi
+Data Assimilation Through Simulation Based Inference
