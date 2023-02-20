@@ -1,1 +1,6 @@
 *.pt
+*.h5
+trash/*
+*.pdf
+*.npy
+*.pyc
