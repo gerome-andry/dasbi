@@ -1,0 +1,97 @@
+\documentclass[a4paper, 12pt]{article}
+\usepackage[utf8]{inputenc}
+
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{enumitem}
+%\usepackage{gensymb}
+\usepackage{array}
+\usepackage[T1]{fontenc}
+\usepackage{bbold}
+\usepackage{bm}
+\usepackage{graphicx}
+\usepackage{color}
+\usepackage{hyperref}
+\usepackage[margin=2cm]{geometry}
+
+\usepackage{float}
+\usepackage{subcaption}
+\usepackage{comment}
+\usepackage[table, xcdraw, dvipsnames]{xcolor}
+\usepackage{multirow}
+
+\usepackage{multicol}
+\usepackage{empheq}
+\usepackage{lscape}
+\usepackage{tabto}
+
+% \usepackage[backend=biber,sorting=none]{biblatex}
+% \addbibresource{Ref.bib}
+% \nocite{*}
+
+\title{Data assimilation as Simulation-based inference}
+
+\author{ANDRY Gérôme (s182909)}
+
+\date{Academic year 2022-2023}
+
+\begin{document}
+
+\maketitle
+
+\newpage
+\section*{Abstract}
+\input{sections/Abstract.tex}
+
+\newpage
+\section*{Acknowledgements}
+
+\newpage
+\tableofcontents
+\newpage
+
+
+\section{Introduction}
+\subsection{Inverse problem}
+General purpose (from which SBI is in)
+\subsection{Data assimilation}
+4D Var, ... 
+\subsection{Problem statement}
+
+\section{SBI framework}
+\subsection{Introduction}
+Frontier SBI + packages (nflows Cranmer, lampe, zuko, ... ?)
+\subsection{Neural posterior estimation}
+\subsubsection{Normalizing flows}
+\subsection{Neural ratio estimation}
+\subsection{Neural score estimation}
+
+\section{Application to data assimilation problems}
+\subsection{Assumptions}
+Simulator, pairs x/y, no prior knowledge on $p(x_0)$ at first,
+general black-box observator (then, unwarp -> linear), high dimensionality,
+spatial structure, ... TIME embed -> no ass about stationarity of density (mention FR work)
+
+\subsection{NPE}
+speak here about Multi scale flow
+\subsection{NRE}
+speak here about state density 
+\subsection{NSE}
+novel method, high dimensionality expectation, domain generalization
+
+\section{Experiments}
+\subsection{Evaluation protocol}
+Add a word about architectures in appendix
+\subsection{Simulators}
+\subsubsection{Lorenz-96}
+\subsubsection{2D Kolmogorov flow}
+\subsection{Observator}
+\subsection{Results}
+
+\section{Conclusion}
+
+\section{References}
+
+\end{document}
