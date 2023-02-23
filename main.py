@@ -1,5 +1,5 @@
-import datsbi.simulators
-from datsbi.simulators.sim_lorenz96 import *
+import dasbi.simulators
+from dasbi.simulators.sim_lorenz96 import *
 import zuko
 
 import torch
