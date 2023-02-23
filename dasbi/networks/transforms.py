@@ -74,7 +74,7 @@ class InvConv(Transform):
         return z, ladj
 
     def inverse(self, z, context):
-        
+        pass
 
 
 if __name__ == '__main__':
