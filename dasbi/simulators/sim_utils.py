@@ -1,7 +1,8 @@
 import torch
 import numpy as np
 import lampe
-from tqdm import tqdm 
+from tqdm import tqdm
+
 
 class Simulator:
     def __init__(self):
@@ -47,7 +48,7 @@ class Simulator:
                 (self.data[sizes[0] : sz, i, ...], self.obs[sizes[0] : sz, i, ...])
             )
             sets[2].append((self.data[sz:, i, ...], self.obs[sz:, i, ...]))
-        
+
         if split:
             lampe.data.H5Dataset.store(sets[0], filename + "_train.h5", size=sizes[0])
             lampe.data.H5Dataset.store(sets[1], filename + "_val.h5", size=sizes[1])

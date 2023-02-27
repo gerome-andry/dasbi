@@ -121,7 +121,7 @@ class ObservatorStation2D:
         )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     torch.manual_seed(42)
 
     o = ObservatorStation2D((512, 512), (16, 16), (8, 8), (30, 30), (10, 10))
