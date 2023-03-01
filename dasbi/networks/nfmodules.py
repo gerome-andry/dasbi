@@ -1,23 +1,73 @@
 import torch
 import torch.nn as nn
 import transforms as tf
+#from zuko.distributions import DiagNormal 
 
 class ConvNPE(tf.Transform):
-    def __init__(self, x_dim, y_dim, base, n_modules):
+    def __init__(self, x_dim, y_dim, base, n_modules, n_c, k_sz, emb_net = None):
+        # Deal with Embedding network !!!
         super().__init__()
-        self.transforms = nn.ModuleList([ConvStep(x_dim, y_dim)])
+        self.x_dim = x_dim
+        self.n_mod = n_modules
+        self.transforms = nn.ModuleList([])
+        self.ssplit = tf.SpatialSplit()
+        self.base_dist = base
+        for _ in range(n_modules):
+            self.transforms.append(ConvStep(x_dim, y_dim, n_c, k_sz))
+            x_dim[-2:] //= 2
+            y_dim[-2:] //= 2
+
+        self.conv_y = nn.ModuleList([nn.Conv2d(4*y_dim[1], y_dim[1], 1)])
 
     def forward(self, x, y):
-        pass
+        # EMBED !!!
+        z = []
+        ladj = x.new_zeros(x.shape[0])
+        y_c = y.shape[1]
+        init_shape = x.shape
+        for i, t in enumerate(self.transforms):
+            z_i, ladj_i = t(x, y)
+            c = z_i.shape[1]
+            x, z_i = z_i.split((c*1//4, c*3//4), dim = 1)
+            z.append(z_i)
+            ladj += ladj_i
+            y, _ = self.ssplit(y)
+            y = self.conv_y[i](y)
+        
+        z.append(x)
+        z = [x.flatten(1) for x in z]
+        z = torch.cat(z, dim = 1).reshape(init_shape)
+
+        return z, ladj
 
     def inverse(self, z, y):
-        pass
+        emb_context = [y]
+        for c_y in range(self.conv_y):
+            y = self.ssplit(y)
+            emb_context.append(c_y(y))
+        emb_context.reverse()
+
+        for i in range(self.n_mod):
+            pass
+        
+        ladj = None
+
+        return x, ladj
 
     def sample(self, y, n):
-        pass
+        assert y.shape[0] == 1, "Can only condition on a single observation for sampling"
+        y = y.expand(n, -1, -1, -1)
+        z = self.base_dist.sample((n,))
+        s_dim = self.x_dim
+        s_dim[0] = n
+        z = z.reshape(s_dim)
 
-    def loss(self):
-        pass
+        return self.inverse(z, y)[0]
+
+    def loss(self, x, y):
+        z, ladj = self.forward(x,y)
+        z = z.reshape((z.shape[0], -1)) # B x elem
+        return -(ladj + self.base_dist.log_prob(z))
 
 
 class ConvCoup(nn.Module):
@@ -63,7 +113,7 @@ class ConvEmb(nn.Module):
         emb_y = self.act(emb_y)
         emb_y = torch.cat((self.mpool_in(y), emb_y), dim=1)
         emb_y = self.conv2(emb_y)
-        emb_y = self.act(emb_y).flatten()  # deal with batch ???
+        emb_y = self.act(emb_y).flatten()
         out = self.lin(emb_y) + x
 
         return self.act(out)
@@ -72,7 +122,6 @@ class ConvEmb(nn.Module):
 class ConvStep(tf.Transform):
     def __init__(self, input_dim, context_dim, n_conv, kernel_sz):
         super().__init__()
-        # ADD QUAD COUPLING !!!
         self.mod = nn.ModuleList([tf.SpatialSplit(), tf.ActNorm()])
         self.nc = n_conv
         self.conv_mod = nn.ModuleList()
@@ -152,16 +201,16 @@ class ConvStep(tf.Transform):
 
 
 if __name__ == "__main__":
-    x_dim = (10, 1, 1, 4)
-    y_dim = (10, 1, 1, 4)
+    x_dim = (10, 1, 4, 4)
+    y_dim = (10, 1, 4, 4)
     cs = ConvStep(torch.tensor(x_dim), torch.tensor(y_dim), 1, torch.tensor((1, 3)))
     x = torch.randn(x_dim)
     y = torch.randn(y_dim)
-    print(x)
+    # print(x)
     z, l = cs(x, y)
     # print(z.shape)
-    print(l)
+    # print(l)
     x_b, _ = cs.inverse(z, y)
-    print(x_b)
+    # print(x_b)
     print(torch.allclose(x, x_b, atol=1e-3, rtol=0))
     # print(cs)
