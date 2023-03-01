@@ -17,7 +17,7 @@ class ConvNPE(tf.Transform):
             x_dim[-2:] //= 2
             y_dim[-2:] //= 2
 
-        self.conv_y = nn.ModuleList([nn.Conv2d(4*y_dim[1], y_dim[1], 1)])
+        self.conv_y = nn.ModuleList([nn.Conv2d(4*y_dim[1], y_dim[1], 1) for _ in range(self.n_mod)])
 
     def forward(self, x, y):
         # EMBED !!!
@@ -42,14 +42,28 @@ class ConvNPE(tf.Transform):
 
     def inverse(self, z, y):
         emb_context = [y]
-        for c_y in range(self.conv_y):
+        for c_y in self.conv_y:
             y = self.ssplit(y)
             emb_context.append(c_y(y))
         emb_context.reverse()
 
+        b,c,h,w = z.shape
+        shapes = []
         for i in range(self.n_mod):
-            pass
-        
+            new_h = torch.clip(torch.tensor(h//2), 1)
+            new_w = torch.clip(torch.tensor(w//2), 1)
+            shapes.append((b,c,new_h, new_w))
+            c *= 3
+            if i < self.n_mod - 1:
+                h = new_h
+                w = new_w
+        shapes.append((b,c,h,w))
+
+        x = z.reshape(b,-1)
+        x_f_ls = x.split([torch.prod(torch.tensor(S[1:])) for S in shapes], dim = 1)
+        x_i = []
+        for x_f in x_f_ls:
+            # CHECK IF I CAN REVERSE DIRECTLY !!!
         ladj = None
 
         return x, ladj
