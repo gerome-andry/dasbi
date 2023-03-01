@@ -2,13 +2,57 @@ import torch
 import torch.nn as nn
 import transforms as tf
 
+class ConvNPE(tf.Transform):
+    def __init__(self, x_dim, y_dim, base, n_modules):
+        super().__init__()
+        self.transforms = nn.ModuleList([ConvStep(x_dim, y_dim)])
+
+    def forward(self, x, y):
+        pass
+
+    def inverse(self, z, y):
+        pass
+
+    def sample(self, y, n):
+        pass
+
+    def loss(self):
+        pass
+
+
+class ConvCoup(nn.Module):
+    def __init__(self, input_chan, output_chan, lay=3, chan=32, ks=3):
+        super().__init__()
+
+        assert output_chan % 2 == 0, "Need pair output channel"
+        self.oc = output_chan
+        self.head = nn.Conv2d(input_chan, chan, ks, padding=(ks - 1) // 2)
+        self.conv = nn.ModuleList(
+            [nn.Conv2d(chan + input_chan, chan, 1) for _ in range(lay)]
+        )
+        self.tail = nn.Conv2d(chan + input_chan, output_chan, ks, padding=(ks - 1) // 2)
+        self.act = nn.ReLU()
+
+    def forward(self, x):
+        x_skip = x
+        x = self.head(x)
+        for c in self.conv:
+            x = self.act(x)
+            x = c(torch.cat((x, x_skip), dim=1))
+
+        x = self.act(x)
+        x = self.tail(torch.cat((x, x_skip), dim=1))
+
+        return x[:, : self.oc // 2, ...], x[:, self.oc // 2 :, ...]
+
 
 class ConvEmb(nn.Module):
     def __init__(self, input_dim, output_lg):
         super().__init__()
+        self.batch = input_dim
         ks = torch.clamp(input_dim[-2:] // 3, 1)
         self.conv1 = nn.Conv2d(input_dim[1], input_dim[1] * 4, ks)
-        self.mpool_in = nn.MaxPool2d(tuple(ks))
+        self.mpool_in = nn.MaxPool2d(tuple(ks), stride=1)
         self.conv2 = nn.Conv2d(input_dim[1] * 5, 1, (1, 1))
         self.act = nn.ReLU()
 
@@ -19,20 +63,20 @@ class ConvEmb(nn.Module):
         emb_y = self.act(emb_y)
         emb_y = torch.cat((self.mpool_in(y), emb_y), dim=1)
         emb_y = self.conv2(emb_y)
-        emb_y = self.act(emb_y).flatten()
+        emb_y = self.act(emb_y).flatten()  # deal with batch ???
         out = self.lin(emb_y) + x
 
         return self.act(out)
 
 
 class ConvStep(tf.Transform):
-    def __init__(self, context_dim, n_conv, kernel_sz):
+    def __init__(self, input_dim, context_dim, n_conv, kernel_sz):
         super().__init__()
         # ADD QUAD COUPLING !!!
         self.mod = nn.ModuleList([tf.SpatialSplit(), tf.ActNorm()])
         self.nc = n_conv
         self.conv_mod = nn.ModuleList()
-        mode = ['UL', 'LR', 'UR', 'LL']
+        mode = ["UL", "LR", "UR", "LL"]
 
         for _ in range(n_conv):
             k_net = ConvEmb(context_dim, torch.prod(kernel_sz) - 1)
@@ -49,41 +93,55 @@ class ConvStep(tf.Transform):
             )
             mode.reverse()
 
+        chan_c = input_dim[1]
+        self.coup = tf.QuadCoupling(
+            [ConvCoup(chan_c * i + 4 * context_dim[1], 2 * chan_c) for i in range(1, 4)]
+        )
+
     def forward(self, x, context):
+        assert (
+            x.shape[-2:] == context.shape[-2:]
+        ), "Need same spatial dimensions for x and y"
+
         b = x.shape[0]
         ladj = x.new_zeros(b)
-
-        print(x.shape)
+        scaled_context, _ = self.mod[0](context)
         z = x
         for m in self.mod:
             z, ladj_i = m(z)
-            print(z.shape)
+            # print(z)
             ladj += ladj_i
 
         c = z.shape[1]
         for c_ls in self.conv_mod:
             for i, mc in enumerate(c_ls[:-1]):
                 for j in range(c // 4):
-                    z[:, i*c//4 + j, ...], ladj_i = mc(z[:, i*c//4 + j, ...].unsqueeze(1), context)
+                    z_c, ladj_i = mc(z[:, i * c // 4 + j, ...].unsqueeze(1), context)
+                    z[:, i * c // 4 + j, ...] = z_c.squeeze(1)
                     ladj += ladj_i
-            
+
             z, ladj_i = c_ls[-1](z)
             ladj += ladj_i
-        
-        #add quadcoup here
+
+        z, ladj_i = self.coup(z, scaled_context)
+        ladj += ladj_i
 
         return z, ladj
-    
+
     def inverse(self, z, context):
         x = z
-        #add quadcoup here
+        scaled_context, _ = self.mod[0](context)
+        x, _ = self.coup.inverse(x, scaled_context)
 
         c = x.shape[1]
         for c_ls in reversed(self.conv_mod):
             x, _ = c_ls[-1].inverse(x)
-            for i, mc in enumerate(c_ls[:-1]): #not reverse to keep the same padding order
+            for i, mc in enumerate(
+                c_ls[:-1]
+            ):  # not reverse to keep the same padding order
                 for j in range(c // 4):
-                    x[:, i*c//4 + j, ...], _ = mc.inverse(x[:, i*c//4 + j, ...].unsqueeze(1), context)
+                    x_c, _ = mc.inverse(x[:, i * c // 4 + j, ...].unsqueeze(1), context)
+                    x[:, i * c // 4 + j, ...] = x_c.squeeze(1)
 
         for m in reversed(self.mod):
             x, _ = m.inverse(x)
@@ -93,14 +151,17 @@ class ConvStep(tf.Transform):
         return x, ladj
 
 
-if __name__ == '__main__':
-    cs = ConvStep(torch.tensor((1,1,3,3)), 1, torch.tensor((3,3)))
-    x = torch.randint(10, (2,1,4,4)).float()
-    y = torch.randint(10, (1,1,3,3)).float()
+if __name__ == "__main__":
+    x_dim = (10, 1, 1, 4)
+    y_dim = (10, 1, 1, 4)
+    cs = ConvStep(torch.tensor(x_dim), torch.tensor(y_dim), 1, torch.tensor((1, 3)))
+    x = torch.randn(x_dim)
+    y = torch.randn(y_dim)
     print(x)
-    z, l = cs(x,y)
-    print(z)
-    # print(l)
-    x, _ = cs.inverse(z,y)
-    # print(x)
+    z, l = cs(x, y)
+    # print(z.shape)
+    print(l)
+    x_b, _ = cs.inverse(z, y)
+    print(x_b)
+    print(torch.allclose(x, x_b, atol=1e-3, rtol=0))
     # print(cs)

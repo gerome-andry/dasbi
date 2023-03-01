@@ -20,10 +20,9 @@ class ActNorm(Transform):
     def forward(self, x, context=None):
         if self.mu is None:
             self.mu = nn.Parameter(x.mean(dim=0))
-            if x.shape[0] > 1:
-                self.log_sig = nn.Parameter(x.std(dim=0).log())
-            else:
-                self.log_sig = nn.Parameter(torch.ones_like(x).squeeze(0))
+            self.log_sig = torch.nan_to_num(x.std(dim=0))
+            self.log_sig[self.log_sig == 0] = 1
+            self.log_sig = nn.Parameter(self.log_sig.log())
 
         z = (x - self.mu) / self.log_sig.exp()
         batch_size = x.shape[0]
@@ -51,7 +50,7 @@ class InvConv(Transform):
         self.mode = mode
         self.net = kern_net
         self.ks = kernel_sz
-        self.kernel = nn.Parameter(torch.ones(params_k - 1))
+        self.kernel = nn.Parameter(torch.randn(params_k - 1))
 
         self.mask = torch.ones(tuple(self.ks), dtype=torch.bool)
         hpad, wpad = self.ks - 1
@@ -85,27 +84,33 @@ class InvConv(Transform):
             self.mask[0, 0] = 0
 
     def forward(self, x, context):
-        weights = self.conv_kern(self.net(self.kernel, context))
         batch_size = x.shape[0]
-        weights = weights.reshape((1, 1) + tuple(self.ks))
-        x_p = self.pad(x)
+        z = torch.zeros_like(x)
 
-        z = nn.functional.conv2d(x_p, weights)
+        for b in range(batch_size):
+            weights = self.conv_kern(self.net(self.kernel, context[b].unsqueeze(0)))
+            weights = weights.reshape((1, 1) + tuple(self.ks))
+            x_p = self.pad(x[b].unsqueeze(0))
+            z[b] = nn.functional.conv2d(x_p, weights)
+
         ladj = z.new_zeros(batch_size)
 
         return z, ladj
 
     def inverse(self, z, context):
-        weights = self.conv_kern(self.net(self.kernel, context))
-        c_mat = self.fc_from_conv(weights, z)
+        batch_size, c, h, w = z.shape
+        x = torch.zeros_like(z)
 
-        print(c_mat)
-        b, c, h, w = z.shape
+        for b in range(batch_size):
+            weights = self.conv_kern(self.net(self.kernel, context[b].unsqueeze(0)))
+            z_b = z[b].unsqueeze(0)
+            c_mat = self.fc_from_conv(weights, z_b)
+            z_b = z_b.permute((2, 3, 1, 0))
+            z_b = z_b.reshape((c * h * w, 1))
+            x[b] = (
+                torch.linalg.solve(c_mat, z_b).reshape(h, w, c, 1).permute((3, 2, 0, 1))
+            )
 
-        z = z.permute((2, 3, 1, 0))
-        z = z.reshape((c * h * w, b))
-        x = torch.linalg.solve(c_mat, z).reshape(h, w, c, b)
-        x = x.permute((3, 2, 0, 1))
         ladj = None
 
         return x, ladj
@@ -141,17 +146,34 @@ class InvConv(Transform):
 class SpatialSplit(Transform):
     def __init__(self):
         super().__init__()
+        self.type = "2D"
 
     def forward(self, x, context=None):
         b, c, h, w = x.shape
-        o_shape = (b, c, h // 2, w // 2)
+        if h > 1 and w > 1:  # 2D data
+            o_shape = (b, c, h // 2, w // 2)
 
-        z1 = x[..., ::2, ::2].reshape(o_shape)
-        z2 = x[..., ::2, 1::2].reshape(o_shape)
-        z3 = x[..., 1::2, ::2].reshape(o_shape)
-        z4 = x[..., 1::2, 1::2].reshape(o_shape)
+            z1 = x[..., ::2, ::2].reshape(o_shape)
+            z2 = x[..., ::2, 1::2].reshape(o_shape)
+            z3 = x[..., 1::2, ::2].reshape(o_shape)
+            z4 = x[..., 1::2, 1::2].reshape(o_shape)
+        else:
+            if h == 1:
+                o_shape = (b, c, h, w // 4)
+                z1 = x[..., ::4].reshape(o_shape)
+                z2 = x[..., 1::4].reshape(o_shape)
+                z3 = x[..., 2::4].reshape(o_shape)
+                z4 = x[..., 3::4].reshape(o_shape)
+                self.type = "1DH"
+            else:
+                o_shape = (b, c, h // 4, w)
+                z1 = x[..., ::4, :].reshape(o_shape)
+                z2 = x[..., 1::4, :].reshape(o_shape)
+                z3 = x[..., 2::4, :].reshape(o_shape)
+                z4 = x[..., 3::4, :].reshape(o_shape)
+                self.type = "1DW"
+
         z = torch.cat((z1, z2, z3, z4), dim=1)
-
         ladj = x.new_zeros(b)
 
         return z, ladj
@@ -160,11 +182,25 @@ class SpatialSplit(Transform):
         b, c, h, w = z.shape
 
         new_c = c // 4
-        x = torch.zeros((b, c // 4, 2 * h, 2 * w))
-        x[..., ::2, ::2] = z[:, :new_c, ...]
-        x[..., ::2, 1::2] = z[:, new_c : 2 * new_c, ...]
-        x[..., 1::2, ::2] = z[:, 2 * new_c : 3 * new_c, ...]
-        x[..., 1::2, 1::2] = z[:, 3 * new_c : c, ...]
+        if self.type == "2D":  # 2D data
+            x = torch.zeros((b, c // 4, 2 * h, 2 * w))
+            x[..., ::2, ::2] = z[:, :new_c, ...]
+            x[..., ::2, 1::2] = z[:, new_c : 2 * new_c, ...]
+            x[..., 1::2, ::2] = z[:, 2 * new_c : 3 * new_c, ...]
+            x[..., 1::2, 1::2] = z[:, 3 * new_c : c, ...]
+        else:
+            if self.type == "1DH":
+                x = torch.zeros((b, c // 4, h, 4 * w))
+                x[..., ::4] = z[:, :new_c, ...]
+                x[..., 1::4] = z[:, new_c : 2 * new_c, ...]
+                x[..., 2::4] = z[:, 2 * new_c : 3 * new_c, ...]
+                x[..., 3::4] = z[:, 3 * new_c : c, ...]
+            else:
+                x = torch.zeros((b, c // 4, 4 * h, w))
+                x[..., ::4, :] = z[:, :new_c, ...]
+                x[..., 1::4, :] = z[:, new_c : 2 * new_c, ...]
+                x[..., 2::4, :] = z[:, 2 * new_c : 3 * new_c, ...]
+                x[..., 3::4, :] = z[:, 3 * new_c : c, ...]
 
         ladj = None
 
@@ -181,7 +217,6 @@ class AffineCoupling(Transform):
         log_s, t = self.st_net(context)
         z = (x + t) * log_s.exp()
         ladj = log_s.sum((1, 2, 3))
-
         return z, ladj
 
     def inverse(self, z, context):
@@ -240,7 +275,7 @@ class IdentityLayerx2(nn.Module):
         self.o_lg = o_lg
 
     def forward(self, x, y):
-        return y.sum(1).flatten()[:self.o_lg] #, y.sum(1).flatten()[:self.o_lg] ** 2
+        return y.sum(1).flatten()[: self.o_lg]  # , y.sum(1).flatten()[:self.o_lg] ** 2
 
 
 if __name__ == "__main__":
@@ -263,7 +298,7 @@ if __name__ == "__main__":
     ic = InvConv((3, 3), IdentityLayerx2(8), mode="LR")
     x = torch.randint(10, (20, 1, 3, 3))
     print(x)
-    y = torch.ones((1,1,3,3))
+    y = torch.ones((1, 1, 3, 3))
     z, _ = ic.forward(x.float(), y)
     print(z)
     x, _ = ic.inverse(z, y)
