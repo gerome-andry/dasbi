@@ -1,38 +1,47 @@
 import torch
 import torch.nn as nn
 import transforms as tf
-#from zuko.distributions import DiagNormal 
+from zuko.distributions import DiagNormal 
 
 class ConvNPE(tf.Transform):
-    def __init__(self, x_dim, y_dim, base, n_modules, n_c, k_sz, emb_net = None):
+    def __init__(self, x_dim, y_dim, base, n_modules, n_c, k_sz, type = '2D', emb_net = None):
         # Deal with Embedding network !!!
         super().__init__()
-        self.x_dim = x_dim
+        self.x_dim = x_dim.clone()
         self.n_mod = n_modules
         self.transforms = nn.ModuleList([])
         self.ssplit = tf.SpatialSplit()
         self.base_dist = base
+        self.type = type
         for _ in range(n_modules):
             self.transforms.append(ConvStep(x_dim, y_dim, n_c, k_sz))
-            x_dim[-2:] //= 2
-            y_dim[-2:] //= 2
+            x_dim[1] *= 3
+            if type == '2D':
+                x_dim[-2:] //= 2
+                y_dim[-2:] //= 2
+            else:
+                x_dim[-2:] //= 4
+                y_dim[-2:] //= 4
 
-        self.conv_y = nn.ModuleList([nn.Conv2d(4*y_dim[1], y_dim[1], 1) for _ in range(self.n_mod)])
+            x_dim[-2:] = torch.clamp(x_dim[-2:], 1)
+            y_dim[-2:] = torch.clamp(y_dim[-2:], 1)
+
+        self.conv_y = nn.ModuleList([nn.Conv2d(4*y_dim[1], y_dim[1], 1) for _ in range(self.n_mod - 1)])
 
     def forward(self, x, y):
         # EMBED !!!
         z = []
         ladj = x.new_zeros(x.shape[0])
-        y_c = y.shape[1]
         init_shape = x.shape
         for i, t in enumerate(self.transforms):
             z_i, ladj_i = t(x, y)
             c = z_i.shape[1]
-            x, z_i = z_i.split((c*1//4, c*3//4), dim = 1)
+            z_i, x = z_i.split((c*1//4, c*3//4), dim = 1)
             z.append(z_i)
             ladj += ladj_i
-            y, _ = self.ssplit(y)
-            y = self.conv_y[i](y)
+            if i < self.n_mod - 1:
+                y, _ = self.ssplit(y)
+                y = self.conv_y[i](y)
         
         z.append(x)
         z = [x.flatten(1) for x in z]
@@ -43,38 +52,55 @@ class ConvNPE(tf.Transform):
     def inverse(self, z, y):
         emb_context = [y]
         for c_y in self.conv_y:
-            y = self.ssplit(y)
+            y, _ = self.ssplit(y)
             emb_context.append(c_y(y))
         emb_context.reverse()
 
         b,c,h,w = z.shape
         shapes = []
         for i in range(self.n_mod):
-            new_h = torch.clip(torch.tensor(h//2), 1)
-            new_w = torch.clip(torch.tensor(w//2), 1)
+            if self.type == '2D':
+                new_h = torch.clamp(torch.tensor([h//2]), 1)
+                new_w = torch.clamp(torch.tensor([w//2]), 1)
+            else:
+                new_h = torch.clamp(torch.tensor([h//4]), 1)
+                new_w = torch.clamp(torch.tensor([w//4]), 1)
+
             shapes.append((b,c,new_h, new_w))
             c *= 3
-            if i < self.n_mod - 1:
-                h = new_h
-                w = new_w
-        shapes.append((b,c,h,w))
+            h = new_h
+            w = new_w
 
+        shapes.append((b,c,h,w))
         x = z.reshape(b,-1)
         x_f_ls = x.split([torch.prod(torch.tensor(S[1:])) for S in shapes], dim = 1)
         x_i = []
-        for x_f in x_f_ls:
-            # CHECK IF I CAN REVERSE DIRECTLY !!!
+        for i, x_f in enumerate(x_f_ls):
+            x_i.append(x_f.unflatten(1,shapes[i][1:]))
+        
+        x_i[-2] = torch.cat((x_i[-2], x_i[-1]), dim = 1)
+        x_i = x_i[:-1]
+        x_i.reverse()
+
+        x_trans = x_i[0]
+        for i, t in enumerate(reversed(self.transforms)):
+            x_trans, _ = t.inverse(x_trans, emb_context[i])
+            if i < len(self.transforms) - 1:
+                x_trans = torch.cat((x_i[i+1], x_trans), dim = 1)
+
+        x = x_trans
         ladj = None
 
         return x, ladj
 
     def sample(self, y, n):
+        #try flow(y) to create a sampler
         assert y.shape[0] == 1, "Can only condition on a single observation for sampling"
         y = y.expand(n, -1, -1, -1)
         z = self.base_dist.sample((n,))
         s_dim = self.x_dim
         s_dim[0] = n
-        z = z.reshape(s_dim)
+        z = z.reshape(tuple(s_dim))
 
         return self.inverse(z, y)[0]
 
@@ -113,7 +139,6 @@ class ConvCoup(nn.Module):
 class ConvEmb(nn.Module):
     def __init__(self, input_dim, output_lg):
         super().__init__()
-        self.batch = input_dim
         ks = torch.clamp(input_dim[-2:] // 3, 1)
         self.conv1 = nn.Conv2d(input_dim[1], input_dim[1] * 4, ks)
         self.mpool_in = nn.MaxPool2d(tuple(ks), stride=1)
@@ -215,16 +240,21 @@ class ConvStep(tf.Transform):
 
 
 if __name__ == "__main__":
-    x_dim = (10, 1, 4, 4)
-    y_dim = (10, 1, 4, 4)
-    cs = ConvStep(torch.tensor(x_dim), torch.tensor(y_dim), 1, torch.tensor((1, 3)))
+    import os 
+    os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
+
+    x_dim = (20, 1, 1, 16)
+    y_dim = (20, 1, 1, 16)
+    elm = x_dim[-2]*x_dim[-1]
+    cs = ConvNPE(torch.tensor(x_dim), torch.tensor(y_dim), DiagNormal(torch.zeros(elm), torch.ones(elm)), 2, 1, torch.tensor((3,1)), type = '1D')
     x = torch.randn(x_dim)
     y = torch.randn(y_dim)
-    # print(x)
+    # print(x[0,0])
     z, l = cs(x, y)
-    # print(z.shape)
-    # print(l)
+    # print(z)
+    print(l)
     x_b, _ = cs.inverse(z, y)
-    # print(x_b)
+    # print(x_b[0,0])
     print(torch.allclose(x, x_b, atol=1e-3, rtol=0))
+    print(cs.loss(x,y).mean())
     # print(cs)

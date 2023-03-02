@@ -230,7 +230,7 @@ class AffineCoupling(Transform):
 class QuadCoupling(Transform):
     def __init__(self, nets):
         super().__init__()
-        self.coupling_nets = [AffineCoupling(nn) for nn in nets]
+        self.coupling_nets = nn.ModuleList([AffineCoupling(nn) for nn in nets])
 
     def forward(self, x, context):
         b, c, h, w = x.shape
@@ -255,6 +255,7 @@ class QuadCoupling(Transform):
         assert c % 4 == 0, "Must contain 4n channels"
         chan_coup = c // 4
 
+        # print(context.shape)
         x = z[:, :chan_coup, ...]
         it = 1
         for ac in self.coupling_nets:
