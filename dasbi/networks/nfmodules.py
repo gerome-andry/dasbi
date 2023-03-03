@@ -107,7 +107,7 @@ class ConvNPE(tf.Transform):
     def loss(self, x, y):
         z, ladj = self.forward(x,y)
         z = z.reshape((z.shape[0], -1)) # B x elem
-        return -(ladj + self.base_dist.log_prob(z))
+        return -(ladj + self.base_dist().log_prob(z)).mean()
 
 
 class ConvCoup(nn.Module):

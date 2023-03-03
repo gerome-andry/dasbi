@@ -54,35 +54,34 @@ class InvConv(Transform):
 
         self.mask = torch.ones(tuple(self.ks), dtype=torch.bool)
         hpad, wpad = self.ks - 1
-        if self.mode == "UL":
-            self.pad = lambda x: nn.functional.pad(x, (wpad, 0, hpad, 0))
-            self.unpad = lambda x: x[..., hpad:, wpad:]
+        if self.mode == 'UL':
+            self.pad = (wpad, 0, hpad, 0)
             self.mask[-1, -1] = 0
-        elif self.mode == "UR":
-            self.pad = lambda x: nn.functional.pad(x, (0, wpad, hpad, 0))
-            self.unpad = (
-                lambda x: x[..., hpad:, :-wpad] if wpad > 0 else x[..., hpad:, :]
-            )
+        elif self.mode == 'UR':
+            self.pad = (0, wpad, hpad, 0)
             self.mask[-1, 0] = 0
-        elif self.mode == "LL":
-            self.pad = lambda x: nn.functional.pad(x, (wpad, 0, 0, hpad))
-            self.unpad = (
-                lambda x: x[..., :-hpad, wpad:] if hpad > 0 else x[..., :, wpad:]
-            )
+        elif self.mode == 'LL':
+            self.pad = (wpad, 0, 0, hpad)
             self.mask[0, -1] = 0
         else:  # LR
-            self.pad = lambda x: nn.functional.pad(x, (0, wpad, 0, hpad))
-            self.unpad = (
-                lambda x: x[..., :-hpad, :-wpad]
-                if hpad > 0 and wpad > 0
-                else x[..., :-hpad, :]
-                if hpad > 0 and wpad == 0
-                else x[..., :, :-wpad]
-                if hpad == 0 and wpad > 0
-                else x
-            )
+            self.pad = (0, wpad, 0, hpad)
             self.mask[0, 0] = 0
 
+    def triang_pad(self, x):
+        return nn.functional.pad(x, self.pad)
+    
+    def triang_unpad(self, x):
+        if self.mode == 'UL':
+            tu = lambda x: x[..., self.pad[2]:, self.pad[0]:]
+        elif self.mode == 'UR':
+            tu = lambda x: x[..., self.pad[2]:, :-self.pad[1]] if self.pad[1] > 0 else x[..., self.pad[2]:, :]
+        elif self.mode == 'LL':
+            tu = lambda x: x[..., :-self.pad[3], self.pad[0]:] if self.pad[3] > 0 else x[..., :, self.pad[0]:]
+        else:
+            tu = lambda x: x[..., :-self.pad[3], :-self.pad[1]] if self.pad[3] > 0 and self.pad[1] > 0 else x[..., :-self.pad[3], :] if self.pad[3] > 0 and self.pad[1] == 0 else x[..., :, :-self.pad[1]] if self.pad[3] == 0 and self.pad[1] > 0 else x
+
+        return tu(x)
+    
     def forward(self, x, context):
         batch_size = x.shape[0]
         z = torch.zeros_like(x)
@@ -90,7 +89,7 @@ class InvConv(Transform):
         for b in range(batch_size):
             weights = self.conv_kern(self.net(self.kernel, context[b].unsqueeze(0)))
             weights = weights.reshape((1, 1) + tuple(self.ks))
-            x_p = self.pad(x[b].unsqueeze(0))
+            x_p = self.triang_pad(x[b].unsqueeze(0))
             z[b] = nn.functional.conv2d(x_p, weights)
 
         ladj = z.new_zeros(batch_size)
@@ -116,7 +115,7 @@ class InvConv(Transform):
         return x, ladj
 
     def conv_kern(self, w):
-        ck = torch.ones(tuple(self.ks))
+        ck = w.new_ones(tuple(self.ks))
         ck[self.mask] = w
 
         return ck
@@ -124,7 +123,7 @@ class InvConv(Transform):
     def fc_from_conv(self, kern, x):
         xdim = x.shape[-2:]
         K = torch.ones(xdim)
-        K = self.pad(K)
+        K = self.triang_pad(K)
         c_mat = torch.zeros((x[0, ...].numel(),) * 2)
 
         row = 0
@@ -136,7 +135,7 @@ class InvConv(Transform):
                     kern * K[i : i + kern.shape[0], j : j + kern.shape[1]]
                 )
 
-                K_check = self.unpad(K_check)
+                K_check = self.triang_unpad(K_check)
                 c_mat[row, :] = K_check.flatten()
                 row += 1
 
