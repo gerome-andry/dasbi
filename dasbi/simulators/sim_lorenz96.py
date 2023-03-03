@@ -23,6 +23,7 @@ class LZ96(Simulator):
         print("Generating steps")
         sol = solve_ivp(self.odefun, x0, t_vect)
         self.data = sol.ys
+        self.time = sol.t
 
         if observe:
             print("Starting observations")

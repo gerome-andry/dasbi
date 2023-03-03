@@ -7,6 +7,7 @@ from tqdm import tqdm
 class Simulator:
     def __init__(self):
         self.data = None
+        self.time = None
         self.obs = None
         self.observable = False
         self.observer = None
