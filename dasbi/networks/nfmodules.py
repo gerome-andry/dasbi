@@ -97,7 +97,7 @@ class ConvNPE(tf.Transform):
         #try flow(y) to create a sampler
         assert y.shape[0] == 1, "Can only condition on a single observation for sampling"
         y = y.expand(n, -1, -1, -1)
-        z = self.base_dist.sample((n,))
+        z = self.base_dist().sample((n,))
         s_dim = self.x_dim
         s_dim[0] = n
         z = z.reshape(tuple(s_dim))
