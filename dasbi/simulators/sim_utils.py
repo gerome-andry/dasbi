@@ -39,11 +39,11 @@ class Simulator:
         ]
         sizes.append(nb_sim - np.sum(sizes))
 
+        # ENHANCE WITH SPLIT !!!
         # tqdm and explain
         for i in tqdm(range(self.data.shape[1])):
             sz = sizes[0]
             sets[0].append((self.data[:sz, i, ...], self.obs[:sz, i, ...]))
-
             sz += sizes[1]
             sets[1].append(
                 (self.data[sizes[0] : sz, i, ...], self.obs[sizes[0] : sz, i, ...])

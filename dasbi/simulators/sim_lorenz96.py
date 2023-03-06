@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from .observators.observator2D import *
 from tqdm import tqdm
+import seaborn as sns 
 
 import os
 
@@ -23,7 +24,8 @@ class LZ96(Simulator):
         print("Generating steps")
         sol = solve_ivp(self.odefun, x0, t_vect)
         self.data = sol.ys
-        self.time = sol.t
+        self.time = sol.ts
+        print(self.data.shape)
 
         if observe:
             print("Starting observations")
@@ -43,8 +45,10 @@ class LZ96(Simulator):
 
     def display_sim(self, idx=0, obs=False, filename=None, delay=0.5, show=True):
         data = self.data[idx].T
-        plt.imshow(data, cmap="plasma", interpolation="spline16")
+        col = sns.color_palette('coolwarm', as_cmap=True)
+        plt.imshow(data, cmap=col, interpolation="spline16")
         plt.colorbar()
+        plt.tight_layout()
 
         if show:
             plt.show(block=False)
@@ -56,8 +60,9 @@ class LZ96(Simulator):
 
             if obs:
                 data = self.obs[idx].T
-                plt.imshow(data, cmap="plasma", interpolation="spline16")
+                plt.imshow(data, cmap=col, interpolation="spline16")
                 plt.colorbar()
+                plt.tight_layout()
                 plt.show(block=False)
                 plt.pause(delay)
                 if filename is not None:
@@ -65,15 +70,15 @@ class LZ96(Simulator):
 
         plt.close()
 
-    def observe(self, data=None, tspan=1):
+    def observe(self, data=None):
         if data is None:
             data = self.data
-        print(data.shape)
+        # print(data.shape)
         self.obs = self.observer.observe(data.unsqueeze(-1)).squeeze(-1)
-        print(self.obs.shape)
+        # print(self.obs.shape)
 
         for i in tqdm(range(self.obs.shape[0])):
-            self.obs[i] += self.obs[i] * self.noise_amp * torch.randn_like(self.obs[i])
+            self.obs[i] += self.noise_amp * torch.randn_like(self.obs[i])
 
     def __str__(self):
         str = "==========\nLZ96 model\n=========="
