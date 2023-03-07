@@ -27,13 +27,17 @@ class ObservatorStation2D:
         y_pos = torch.randint(low=0, high=self.k_sz[1], size=(len(xl), len(yu))) + yu
         y_pos = torch.clamp(y_pos, min=0, max=self.dims[1] - 1)
 
-        import matplotlib.pyplot as plt
+        # import matplotlib.pyplot as plt
 
-        stat_map = torch.zeros(self.dims)
-        stat_map[x_pos, y_pos] = 1
-        plt.imshow(stat_map)
-        plt.show()
+        # stat_map = torch.zeros(self.dims)
+        # stat_map[x_pos, y_pos] = 1
+        # plt.imshow(stat_map)
+        # plt.show()
+
+        # FIX VISUALIZE METHOD TO WRAP THAT !!!
+
         self.station = x_pos, y_pos
+
 
     def observe(self, data):
         eval_grid = torch.meshgrid(
@@ -48,16 +52,16 @@ class ObservatorStation2D:
         )
         gaussian_kernel = (gaussian_kernel / torch.max(gaussian_kernel)).T
 
-        #
-        import matplotlib.pyplot as plt
+        # #
+        # import matplotlib.pyplot as plt
 
-        #
+        
 
-        plt.imshow(gaussian_kernel)
-        plt.tight_layout()
-        plt.show()
-        plt.close()
-
+        # plt.imshow(gaussian_kernel)
+        # plt.tight_layout()
+        # plt.show()
+        # plt.close()
+        # #
         x_l = torch.clamp(self.station[0] - self.aoe[0], min=0)
         x_r = torch.clamp(self.station[0] + self.aoe[0] + 1, max=self.dims[0])
 
@@ -71,23 +75,23 @@ class ObservatorStation2D:
                 )
             )
         )
-        #
-        importance = torch.zeros_like(data)
-        #
+        # #
+        # importance = torch.zeros_like(data)
+        # #
         for x, row in enumerate(x_l):
             for y, _ in enumerate(row):
-                #
-                importance[
-                    ..., x_l[x, y] : x_r[x, y], y_d[x, y] : y_u[x, y]
-                ] += gaussian_kernel[
-                    self.aoe[0]
-                    - (self.station[0][x, y] - x_l[x, y]) : self.aoe[0]
-                    + (x_r[x, y] - self.station[0][x, y]),
-                    self.aoe[1]
-                    - (self.station[1][x, y] - y_d[x, y]) : self.aoe[1]
-                    + (y_u[x, y] - self.station[1][x, y]),
-                ]
-                #
+                # #
+                # importance[
+                #     ..., x_l[x, y] : x_r[x, y], y_d[x, y] : y_u[x, y]
+                # ] += gaussian_kernel[
+                #     self.aoe[0]
+                #     - (self.station[0][x, y] - x_l[x, y]) : self.aoe[0]
+                #     + (x_r[x, y] - self.station[0][x, y]),
+                #     self.aoe[1]
+                #     - (self.station[1][x, y] - y_d[x, y]) : self.aoe[1]
+                #     + (y_u[x, y] - self.station[1][x, y]),
+                # ]
+                # #
                 obs[..., x, y] = torch.tensordot(
                     data[..., x_l[x, y] : x_r[x, y], y_d[x, y] : y_u[x, y]],
                     gaussian_kernel[
@@ -102,13 +106,13 @@ class ObservatorStation2D:
 
         # fig = plt.figure()
         # ax = plt.axes(projection="3d")
-        if len(importance.shape) == 3:
-            plt.imshow(importance[0, :, :].T)
-        else:
-            plt.imshow(importance[0, :, :, 0].T)
-        plt.colorbar()
-        plt.tight_layout()
-        plt.show()
+        # if len(importance.shape) == 3:
+        #     plt.imshow(importance[0, :, :].T)
+        # else:
+        #     plt.imshow(importance[0, :, :, 0].T)
+        # plt.colorbar()
+        # plt.tight_layout()
+        # plt.show()
 
         return obs
 

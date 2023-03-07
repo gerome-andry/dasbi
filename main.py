@@ -124,10 +124,10 @@ def postprocess_t(t):
 # EVALUATE THE MODEL 
 
 simulator.generate_steps(torch.randn((1, N)), times)
-
 simulator.data = preprocess_x(simulator.data)
 simulator.obs = preprocess_y(simulator.obs)
 simulator.time = preprocess_t(simulator.time)
+simulator.display_sim(obs = True, filename='hovGT')
 
 base = Unconditional(
             DiagNormal,
@@ -136,20 +136,65 @@ base = Unconditional(
             buffer=True,
         )
 
+epoch = 255
+
 x_dim = torch.tensor((1, 1, N, 1))
 y_dim = torch.tensor((1, 2, N, 1))
 model = NPE(x_dim, y_dim, base, 1, 3, torch.tensor((4, 1)), type = '1D')
-# model = torch.load(...)
+model = torch.load(f'mod_epoch_{epoch}.pt')
+model.eval()
 
 y_dim = torch.tensor((1, 1, 6, 1))
 emb_net = EmbedObs(y_dim, x_dim)
-# emb_net = torch.load(...)
+emb_net = torch.load(f'emb_epoch_{epoch}.pt')
+emb_net.eval()
 
-x,y,t = simulator.data[0, 0], simulator.obs[0, 0], simulator.time[0, 0]
+# EVALUATE CORNER PLOT
+# x,y,t = simulator.data[0, 0], simulator.obs[0, 0], simulator.time[0, 0]
 
-x = x[None, None, :, None]
-y = y[None, None, :, None]
+# x = x[None, None, :, None]
+# y = y[None, None, :, None]
+# t = t.unsqueeze(-1)
+
+# y_t = emb_net(y, t)
+# x_s = model.sample(y_t, 2**12, max_samp = 2**10).squeeze().detach()
+# x_s = postprocess_x(x_s)
+# print(x_s.shape)
+
+# import lampe
+# from lampe.plots import corner, mark_point
+
+# fig = lampe.plots.corner(x_s[:,::5], smooth=1, figsize=(6.8, 6.8), legend="p(x | y*)")
+
+# x_star = x.squeeze()[::5]
+# lampe.plots.mark_point(fig, x_star)
+
+# fig.savefig('cornerNPEtestSim0.pdf')
+
+# y_s = simulator.observe(x_s)
+# fig = lampe.plots.corner(y_s, smooth=1, figsize=(6.8, 6.8), legend="p(y | y*)")
+
+# y_star = postprocess_y(y.squeeze())
+# lampe.plots.mark_point(fig, y_star)
+
+# fig.savefig('cornerNPEtestObs0.pdf')
+
+
+# EVALUATE TRAJECTORY
+
+x,y,t = simulator.data[0], simulator.obs[0], simulator.time[0]
+
+x = x[:, None, :, None]
+y = y[:, None, :, None]
 t = t.unsqueeze(-1)
 
-y = emb_net(y, t)
-x = model.sample(y, 2**10)
+y_t = emb_net(y, t)
+x_s = []
+for yt in y_t:
+    samp = model.sample(yt.unsqueeze(0), 1).squeeze().detach()
+    x_s.append(samp.unsqueeze(0))
+
+x_s = torch.cat(x_s, dim = 0)
+simulator.data = x_s[None,...]
+simulator.obs = simulator.observe()
+simulator.display_sim(obs=True, filename='hovSAMP')

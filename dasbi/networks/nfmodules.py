@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from .transforms import *
+import numpy as np
 from zuko.distributions import DiagNormal 
 
 class ConvNPE(Transform):
@@ -96,16 +97,22 @@ class ConvNPE(Transform):
 
         return x, ladj
 
-    def sample(self, y, n):
+    def sample(self, y, n, max_samp = None):
         #try flow(y) to create a sampler
+        #DEAL WITH TOO MUCH SAMPLE (distribute for inverse pass)
         assert y.shape[0] == 1, "Can only condition on a single observation for sampling"
-        y = y.expand(n, -1, -1, -1)
-        z = self.base_dist().sample((n,))
-        s_dim = self.x_dim
-        s_dim[0] = n
-        z = z.reshape(tuple(s_dim))
-
-        return self.inverse(z, y)[0]
+        x_s = []
+        while n > 0:
+            ns = int(np.minimum(n, max_samp if max_samp is not None else np.inf)) 
+            y = y.expand(ns, -1, -1, -1)
+            z = self.base_dist().sample((ns,))
+            s_dim = self.x_dim
+            s_dim[0] = ns
+            z = z.reshape(tuple(s_dim))
+            x_s.append(self.inverse(z, y)[0])
+            n -= ns
+        
+        return torch.cat(x_s, dim = 0)
 
     def loss(self, x, y):
         z, ladj = self.forward(x,y)
