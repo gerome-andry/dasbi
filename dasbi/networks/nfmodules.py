@@ -1,30 +1,33 @@
 import torch
 import torch.nn as nn
-import transforms as tf
+from .transforms import *
 from zuko.distributions import DiagNormal 
 
-class ConvNPE(tf.Transform):
+class ConvNPE(Transform):
     def __init__(self, x_dim, y_dim, base, n_modules, n_c, k_sz, type = '2D', emb_net = None):
         # Deal with Embedding network !!!
         super().__init__()
         self.x_dim = x_dim.clone()
         self.n_mod = n_modules
         self.transforms = nn.ModuleList([])
-        self.ssplit = tf.SpatialSplit()
+        self.ssplit = SpatialSplit()
         self.base_dist = base
         self.type = type
-        for _ in range(n_modules):
-            self.transforms.append(ConvStep(x_dim, y_dim, n_c, k_sz))
-            x_dim[1] *= 3
-            if type == '2D':
-                x_dim[-2:] //= 2
-                y_dim[-2:] //= 2
-            else:
-                x_dim[-2:] //= 4
-                y_dim[-2:] //= 4
 
-            x_dim[-2:] = torch.clamp(x_dim[-2:], 1)
-            y_dim[-2:] = torch.clamp(y_dim[-2:], 1)
+        xd = x_dim.clone()
+        yd = y_dim.clone()
+        for _ in range(n_modules):
+            self.transforms.append(ConvStep(xd, yd, n_c, k_sz))
+            xd[1] *= 3
+            if type == '2D':
+                xd[-2:] //= 2
+                yd[-2:] //= 2
+            else:
+                xd[-2:] //= 4
+                yd[-2:] //= 4
+
+            xd[-2:] = torch.clamp(x_dim[-2:], 1)
+            yd[-2:] = torch.clamp(y_dim[-2:], 1)
 
         self.conv_y = nn.ModuleList([nn.Conv2d(4*y_dim[1], y_dim[1], 1) for _ in range(self.n_mod - 1)])
 
@@ -158,10 +161,10 @@ class ConvEmb(nn.Module):
         return self.act(out)
 
 
-class ConvStep(tf.Transform):
+class ConvStep(Transform):
     def __init__(self, input_dim, context_dim, n_conv, kernel_sz):
         super().__init__()
-        self.mod = nn.ModuleList([tf.SpatialSplit(), tf.ActNorm()])
+        self.mod = nn.ModuleList([SpatialSplit(), ActNorm()])
         self.nc = n_conv
         self.conv_mod = nn.ModuleList()
         mode = ["UL", "LR", "UR", "LL"]
@@ -171,18 +174,18 @@ class ConvStep(tf.Transform):
             self.conv_mod.append(
                 nn.ModuleList(
                     [
-                        tf.InvConv(kernel_sz, k_net, mode=mode[0]),
-                        tf.InvConv(kernel_sz, k_net, mode=mode[1]),
-                        tf.InvConv(kernel_sz, k_net, mode=mode[2]),
-                        tf.InvConv(kernel_sz, k_net, mode=mode[3]),
-                        tf.ActNorm(),
+                        InvConv(kernel_sz, k_net, mode=mode[0]),
+                        InvConv(kernel_sz, k_net, mode=mode[1]),
+                        InvConv(kernel_sz, k_net, mode=mode[2]),
+                        InvConv(kernel_sz, k_net, mode=mode[3]),
+                        ActNorm(),
                     ]
                 )
             )
             mode.reverse()
 
         chan_c = input_dim[1]
-        self.coup = tf.QuadCoupling(
+        self.coup = QuadCoupling(
             [ConvCoup(chan_c * i + 4 * context_dim[1], 2 * chan_c) for i in range(1, 4)]
         )
 
