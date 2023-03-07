@@ -1,6 +1,7 @@
 *.pt
 *.h5
 trash/*
+NPETEST0/*
 *.pdf
 *.npy
 *.pyc
