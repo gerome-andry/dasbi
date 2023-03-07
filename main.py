@@ -14,7 +14,7 @@ from tqdm import tqdm
 torch.manual_seed(42)
 
 n_sim = 2**10
-batch_size = 32
+batch_size = 64
 step_per_batch = 128
 
 N = 32 
@@ -57,14 +57,78 @@ def preprocess_t(t):
 def postprocess_t(t):
     return t * SIGMAT + MUT
 
-# print(preprocess_t(torch.tensor(5.)))
-# exit()
+# TRAIN A MODEL 
+
+# simulator.data = preprocess_x(simulator.data)
+# simulator.obs = preprocess_y(simulator.obs)
+# simulator.time = preprocess_t(simulator.time)
+
+# base = Unconditional(
+#             DiagNormal,
+#             torch.zeros(N),
+#             torch.ones(N),
+#             buffer=True,
+#         )
+
+# x_dim = torch.tensor((1, 1, N, 1))
+# y_dim = torch.tensor((1, 2, N, 1))
+# model = NPE(x_dim, y_dim, base, 1, 3, torch.tensor((4, 1)), type = '1D')
+
+# y_dim = torch.tensor((1, 1, 6, 1))
+# emb_net = EmbedObs(y_dim, x_dim)
+
+# optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
+# scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+#     optimizer,
+#     factor=0.5,
+#     min_lr=1e-5,
+#     patience=32,
+#     threshold=1e-2,
+#     threshold_mode='abs',
+# )
+
+# loss_plt = []
+# with tqdm(range(256), unit='epoch') as tq: #256 epoch
+#     for epoch in tq:
+#         subset_batch = torch.randint(len(simulator.data), (batch_size,))
+#         losses = []
+
+#         for xb,yb,tb in zip(simulator.data[subset_batch], simulator.obs[subset_batch], simulator.time[subset_batch]):
+#             subset_data = torch.randint(traj_len, (step_per_batch,))
+#             x,y,t = xb[subset_data], yb[subset_data], tb[subset_data]
+#             x = x[:,None,...,None]
+#             y = y[:,None,...,None]
+#             y = emb_net(y, t)
+#             l = model.loss(x, y)
+
+#             optimizer.zero_grad()
+#             l.backward()
+#             optimizer.step()
+
+#             losses.append(l.item())
+
+
+#         l = sum(losses) / len(losses)
+
+#         loss_plt += [l]
+#         torch.save(model, f'mod_epoch_{epoch}.pt')
+#         torch.save(emb_net, f'emb_epoch_{epoch}.pt')
+
+#         tq.set_postfix(loss=l, lr=optimizer.param_groups[0]['lr'])
+#         scheduler.step(l)
+
+# import matplotlib.pyplot as plt 
+# plt.plot(loss_plt)
+# plt.show()
+
+# EVALUATE THE MODEL 
+
+simulator.generate_steps(torch.randn((1, N)), times)
 
 simulator.data = preprocess_x(simulator.data)
 simulator.obs = preprocess_y(simulator.obs)
 simulator.time = preprocess_t(simulator.time)
 
-# TRAIN A MODEL 
 base = Unconditional(
             DiagNormal,
             torch.zeros(N),
@@ -75,50 +139,17 @@ base = Unconditional(
 x_dim = torch.tensor((1, 1, N, 1))
 y_dim = torch.tensor((1, 2, N, 1))
 model = NPE(x_dim, y_dim, base, 1, 3, torch.tensor((4, 1)), type = '1D')
+# model = torch.load(...)
 
 y_dim = torch.tensor((1, 1, 6, 1))
 emb_net = EmbedObs(y_dim, x_dim)
+# emb_net = torch.load(...)
 
-optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
-scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    optimizer,
-    factor=0.5,
-    min_lr=1e-5,
-    patience=32,
-    threshold=1e-2,
-    threshold_mode='abs',
-)
+x,y,t = simulator.data[0, 0], simulator.obs[0, 0], simulator.time[0, 0]
 
-loss_plt = []
-with tqdm(range(256), unit='epoch', ncols=88) as tq: #256 epoch
-    for epoch in tq:
-        subset_batch = torch.randint(len(simulator.data), (batch_size,)) #256 batch/epoch
-        losses = []
+x = x[None, None, :, None]
+y = y[None, None, :, None]
+t = t.unsqueeze(-1)
 
-        for xb,yb,tb in zip(simulator.data[subset_batch], simulator.obs[subset_batch], simulator.time[subset_batch]):
-            subset_data = torch.randint(traj_len, (step_per_batch,))
-            x,y,t = xb[subset_data], yb[subset_data], tb[subset_data]
-            x = x[:,None,...,None]
-            y = y[:,None,...,None]
-            y = emb_net(y, t)
-            l = model.loss(x, y)
-
-            optimizer.zero_grad()
-            l.backward()
-            optimizer.step()
-
-            losses.append(l.item())
-
-
-        l = sum(losses) / len(losses)
-
-        loss_plt += [l]
-        torch.save(model, f'mod_epoch_{epoch}.pt')
-        torch.save(emb_net, f'emb_epoch_{epoch}.pt')
-
-        tq.set_postfix(loss=l, lr=optimizer.param_groups[0]['lr'])
-        scheduler.step(l)
-
-import matplotlib.pyplot as plt 
-plt.plot(loss_plt)
-plt.show()
+y = emb_net(y, t)
+x = model.sample(y, 2**10)

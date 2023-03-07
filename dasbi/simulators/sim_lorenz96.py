@@ -29,7 +29,7 @@ class LZ96(Simulator):
 
         if observe:
             print("Starting observations")
-            self.observe(data=self.data)
+            self.obs = self.observe(data=self.data)
 
     def odefun(self, t, init_state):
         D = torch.zeros(init_state.shape)
@@ -74,11 +74,13 @@ class LZ96(Simulator):
         if data is None:
             data = self.data
         # print(data.shape)
-        self.obs = self.observer.observe(data.unsqueeze(-1)).squeeze(-1)
+        observation = self.observer.observe(data.unsqueeze(-1)).squeeze(-1)
         # print(self.obs.shape)
 
-        for i in tqdm(range(self.obs.shape[0])):
-            self.obs[i] += self.noise_amp * torch.randn_like(self.obs[i])
+        for i in tqdm(range(observation.shape[0])):
+            observation[i] += self.noise_amp * torch.randn_like(observation[i])
+        
+        return observation
 
     def __str__(self):
         str = "==========\nLZ96 model\n=========="
