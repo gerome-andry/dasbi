@@ -10,6 +10,8 @@ import torch
 
 from tqdm import tqdm
 
+import wandb
+
 # GENERATE DATA AND OBSERVATIONS
 torch.manual_seed(42)
 
@@ -84,7 +86,16 @@ mod_args = {'x_dim' : x_dim,
             'k_sz' : torch.tensor((4, 1)),
             'type' : '1D'}
 
-model = NPE(2, base, emb_net, mod_args)
+wandb.init(
+    project = 'dasbi',
+    config = {**{
+        'architecture':'NPE2',
+        'epoch': 4,
+        'layers':3
+        }, **mod_args},
+    name = 'test_name'
+)
+model = NPE(3, base, emb_net, mod_args)
 
 optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
@@ -118,6 +129,7 @@ with tqdm(range(n_epochs), unit='epoch') as tq: #256 epoch
 
         l = sum(losses) / len(losses)
 
+        wandb.log({'train_loss' : l})
         loss_plt += [l]
         torch.save(model, f'mod_epoch_{epoch}.pt')
         torch.save(emb_net, f'emb_epoch_{epoch}.pt')
@@ -190,20 +202,20 @@ plt.show()
 
 # EVALUATE TRAJECTORY
 
-x,y,t = simulator.data[0], simulator.obs[0], simulator.time[0]
+# x,y,t = simulator.data[0], simulator.obs[0], simulator.time[0]
 
-x = x[:, None, :, None]
-y = y[:, None, :, None]
-t = t.unsqueeze(0)
+# x = x[:, None, :, None]
+# y = y[:, None, :, None]
+# t = t.unsqueeze(0)
 
-y_t = emb_net(y, t)
-x_s = []
-for yt in y_t:
-    samp = model.sample(yt.unsqueeze(0), 256).squeeze().detach()
-    samp = samp.mean(0)
-    x_s.append(samp.unsqueeze(0))
+# y_t = emb_net(y, t)
+# x_s = []
+# for yt in y_t:
+#     samp = model.sample(yt.unsqueeze(0), 256).squeeze().detach()
+#     samp = samp.mean(0)
+#     x_s.append(samp.unsqueeze(0))
 
-x_s = torch.cat(x_s, dim = 0)
-simulator.data = x_s[None,...]
-simulator.obs = simulator.observe()
-simulator.display_sim(obs=True, filename='hovSAMP')
+# x_s = torch.cat(x_s, dim = 0)
+# simulator.data = x_s[None,...]
+# simulator.obs = simulator.observe()
+# simulator.display_sim(obs=True, filename='hovSAMP')
