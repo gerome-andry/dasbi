@@ -14,7 +14,7 @@ from tqdm import tqdm
 torch.manual_seed(42)
 
 n_sim = 2**10
-batch_size = 64
+batch_size = 32
 step_per_batch = 128
 
 N = 32 
@@ -77,7 +77,8 @@ def postprocess_t(t):
 # y_dim = torch.tensor((1, 1, 6, 1))
 # emb_net = EmbedObs(y_dim, x_dim)
 
-# optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
+# params = list(model.parameters()) + list(emb_net.parameters())
+# optimizer = torch.optim.AdamW(params, lr=1e-3)
 # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
 #     optimizer,
 #     factor=0.5,
@@ -124,9 +125,9 @@ def postprocess_t(t):
 # EVALUATE THE MODEL 
 
 simulator.generate_steps(torch.randn((1, N)), times)
-simulator.data = preprocess_x(simulator.data)
-simulator.obs = preprocess_y(simulator.obs)
-simulator.time = preprocess_t(simulator.time)
+simulator.data = preprocess_x(simulator.data)[:,:20]
+simulator.obs = preprocess_y(simulator.obs)[:,:20]
+simulator.time = preprocess_t(simulator.time)[:,:20]
 simulator.display_sim(obs = True, filename='hovGT')
 
 base = Unconditional(
@@ -150,7 +151,7 @@ emb_net = torch.load(f'emb_epoch_{epoch}.pt')
 emb_net.eval()
 
 # EVALUATE CORNER PLOT
-# x,y,t = simulator.data[0, 0], simulator.obs[0, 0], simulator.time[0, 0]
+# x,y,t = simulator.data[0, -1], simulator.obs[0, -1], simulator.time[0, -1]
 
 # x = x[None, None, :, None]
 # y = y[None, None, :, None]
@@ -169,7 +170,7 @@ emb_net.eval()
 # x_star = x.squeeze()[::5]
 # lampe.plots.mark_point(fig, x_star)
 
-# fig.savefig('cornerNPEtestSim0.pdf')
+# fig.savefig('cornerNPEtestSimf.pdf')
 
 # y_s = simulator.observe(x_s)
 # fig = lampe.plots.corner(y_s, smooth=1, figsize=(6.8, 6.8), legend="p(y | y*)")
@@ -177,7 +178,7 @@ emb_net.eval()
 # y_star = postprocess_y(y.squeeze())
 # lampe.plots.mark_point(fig, y_star)
 
-# fig.savefig('cornerNPEtestObs0.pdf')
+# fig.savefig('cornerNPEtestObsf.pdf')
 
 
 # EVALUATE TRAJECTORY
@@ -186,12 +187,13 @@ x,y,t = simulator.data[0], simulator.obs[0], simulator.time[0]
 
 x = x[:, None, :, None]
 y = y[:, None, :, None]
-t = t.unsqueeze(-1)
+t = t.unsqueeze(0)
 
 y_t = emb_net(y, t)
 x_s = []
 for yt in y_t:
-    samp = model.sample(yt.unsqueeze(0), 1).squeeze().detach()
+    samp = model.sample(yt.unsqueeze(0), 256).squeeze().detach()
+    samp = samp.mean(0)
     x_s.append(samp.unsqueeze(0))
 
 x_s = torch.cat(x_s, dim = 0)
