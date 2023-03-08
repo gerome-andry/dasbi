@@ -1,6 +1,6 @@
 from dasbi.simulators.sim_lorenz96 import LZ96 as sim 
 from dasbi.simulators.observators.observator2D import ObservatorStation2D
-from dasbi.networks.nfmodules import ConvNPE as NPE
+from dasbi.inference.models import ConvNPE as NPE
 from dasbi.networks.embedding import EmbedObs
 
 from zuko.distributions import DiagNormal
@@ -16,6 +16,7 @@ torch.manual_seed(42)
 n_sim = 2**10
 batch_size = 32
 step_per_batch = 128
+n_epochs = 4
 
 N = 32 
 
@@ -59,76 +60,9 @@ def postprocess_t(t):
 
 # TRAIN A MODEL 
 
-# simulator.data = preprocess_x(simulator.data)
-# simulator.obs = preprocess_y(simulator.obs)
-# simulator.time = preprocess_t(simulator.time)
-
-# base = Unconditional(
-#             DiagNormal,
-#             torch.zeros(N),
-#             torch.ones(N),
-#             buffer=True,
-#         )
-
-# x_dim = torch.tensor((1, 1, N, 1))
-# y_dim = torch.tensor((1, 2, N, 1))
-# model = NPE(x_dim, y_dim, base, 1, 3, torch.tensor((4, 1)), type = '1D')
-
-# y_dim = torch.tensor((1, 1, 6, 1))
-# emb_net = EmbedObs(y_dim, x_dim)
-
-# params = list(model.parameters()) + list(emb_net.parameters())
-# optimizer = torch.optim.AdamW(params, lr=1e-3)
-# scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-#     optimizer,
-#     factor=0.5,
-#     min_lr=1e-5,
-#     patience=32,
-#     threshold=1e-2,
-#     threshold_mode='abs',
-# )
-
-# loss_plt = []
-# with tqdm(range(256), unit='epoch') as tq: #256 epoch
-#     for epoch in tq:
-#         subset_batch = torch.randint(len(simulator.data), (batch_size,))
-#         losses = []
-
-#         for xb,yb,tb in zip(simulator.data[subset_batch], simulator.obs[subset_batch], simulator.time[subset_batch]):
-#             subset_data = torch.randint(traj_len, (step_per_batch,))
-#             x,y,t = xb[subset_data], yb[subset_data], tb[subset_data]
-#             x = x[:,None,...,None]
-#             y = y[:,None,...,None]
-#             y = emb_net(y, t)
-#             l = model.loss(x, y)
-
-#             optimizer.zero_grad()
-#             l.backward()
-#             optimizer.step()
-
-#             losses.append(l.item())
-
-
-#         l = sum(losses) / len(losses)
-
-#         loss_plt += [l]
-#         torch.save(model, f'mod_epoch_{epoch}.pt')
-#         torch.save(emb_net, f'emb_epoch_{epoch}.pt')
-
-#         tq.set_postfix(loss=l, lr=optimizer.param_groups[0]['lr'])
-#         scheduler.step(l)
-
-# import matplotlib.pyplot as plt 
-# plt.plot(loss_plt)
-# plt.show()
-
-# EVALUATE THE MODEL 
-
-simulator.generate_steps(torch.randn((1, N)), times)
-simulator.data = preprocess_x(simulator.data)[:,:20]
-simulator.obs = preprocess_y(simulator.obs)[:,:20]
-simulator.time = preprocess_t(simulator.time)[:,:20]
-simulator.display_sim(obs = True, filename='hovGT')
+simulator.data = preprocess_x(simulator.data)
+simulator.obs = preprocess_y(simulator.obs)
+simulator.time = preprocess_t(simulator.time)
 
 base = Unconditional(
             DiagNormal,
@@ -137,18 +71,91 @@ base = Unconditional(
             buffer=True,
         )
 
-epoch = 255
-
 x_dim = torch.tensor((1, 1, N, 1))
-y_dim = torch.tensor((1, 2, N, 1))
-model = NPE(x_dim, y_dim, base, 1, 3, torch.tensor((4, 1)), type = '1D')
-model = torch.load(f'mod_epoch_{epoch}.pt')
-model.eval()
-
 y_dim = torch.tensor((1, 1, 6, 1))
 emb_net = EmbedObs(y_dim, x_dim)
-emb_net = torch.load(f'emb_epoch_{epoch}.pt')
-emb_net.eval()
+
+y_dim_emb = torch.tensor((1, 2, N, 1))
+
+mod_args = {'x_dim' : x_dim,
+            'y_dim' : y_dim_emb,
+            'n_modules' : 1,
+            'n_c' : 3,
+            'k_sz' : torch.tensor((4, 1)),
+            'type' : '1D'}
+
+model = NPE(2, base, emb_net, mod_args)
+
+optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+    optimizer,
+    factor=0.5,
+    min_lr=1e-5,
+    patience=32,
+    threshold=1e-2,
+    threshold_mode='abs',
+)
+
+loss_plt = []
+with tqdm(range(n_epochs), unit='epoch') as tq: #256 epoch
+    for epoch in tq:
+        subset_batch = torch.randint(len(simulator.data), (batch_size,))
+        losses = []
+
+        for xb,yb,tb in zip(simulator.data[subset_batch], simulator.obs[subset_batch], simulator.time[subset_batch]):
+            subset_data = torch.randint(traj_len, (step_per_batch,))
+            x,y,t = xb[subset_data], yb[subset_data], tb[subset_data]
+            x = x[:,None,...,None]
+            y = y[:,None,...,None]
+            l = model.loss(x, y, t)
+
+            optimizer.zero_grad()
+            l.backward()
+            optimizer.step()
+
+            losses.append(l.item())
+
+
+        l = sum(losses) / len(losses)
+
+        loss_plt += [l]
+        torch.save(model, f'mod_epoch_{epoch}.pt')
+        torch.save(emb_net, f'emb_epoch_{epoch}.pt')
+
+        tq.set_postfix(loss=l, lr=optimizer.param_groups[0]['lr'])
+        scheduler.step(l)
+
+import matplotlib.pyplot as plt 
+plt.plot(loss_plt)
+plt.show()
+
+# EVALUATE THE MODEL 
+
+# simulator.generate_steps(torch.randn((1, N)), times)
+# simulator.data = preprocess_x(simulator.data)[:,:20]
+# simulator.obs = preprocess_y(simulator.obs)[:,:20]
+# simulator.time = preprocess_t(simulator.time)[:,:20]
+# simulator.display_sim(obs = True, filename='hovGT')
+
+# base = Unconditional(
+#             DiagNormal,
+#             torch.zeros(N),
+#             torch.ones(N),
+#             buffer=True,
+#         )
+
+# epoch = 255
+
+# x_dim = torch.tensor((1, 1, N, 1))
+# y_dim = torch.tensor((1, 2, N, 1))
+# model = NPE(x_dim, y_dim, base, 1, 3, torch.tensor((4, 1)), type = '1D')
+# model = torch.load(f'mod_epoch_{epoch}.pt')
+# model.eval()
+
+# y_dim = torch.tensor((1, 1, 6, 1))
+# emb_net = EmbedObs(y_dim, x_dim)
+# emb_net = torch.load(f'emb_epoch_{epoch}.pt')
+# emb_net.eval()
 
 # EVALUATE CORNER PLOT
 # x,y,t = simulator.data[0, -1], simulator.obs[0, -1], simulator.time[0, -1]

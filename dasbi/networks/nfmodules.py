@@ -2,17 +2,63 @@ import torch
 import torch.nn as nn
 from .transforms import *
 import numpy as np
-from zuko.distributions import DiagNormal 
+    
 
-class ConvNPE(Transform):
-    def __init__(self, x_dim, y_dim, base, n_modules, n_c, k_sz, type = '2D', emb_net = None):
-        # Deal with Embedding network !!!
+class ConvCoup(nn.Module):
+    def __init__(self, input_chan, output_chan, lay=3, chan=32, ks=3):
+        super().__init__()
+
+        assert output_chan % 2 == 0, "Need pair output channel"
+        self.oc = output_chan
+        self.head = nn.Conv2d(input_chan, chan, ks, padding=(ks - 1) // 2)
+        self.conv = nn.ModuleList(
+            [nn.Conv2d(chan + input_chan, chan, 1) for _ in range(lay)]
+        )
+        self.tail = nn.Conv2d(chan + input_chan, output_chan, ks, padding=(ks - 1) // 2)
+        self.act = nn.ReLU()
+
+    def forward(self, x):
+        x_skip = x
+        x = self.head(x)
+        for c in self.conv:
+            x = self.act(x)
+            x = c(torch.cat((x, x_skip), dim=1))
+
+        x = self.act(x)
+        x = self.tail(torch.cat((x, x_skip), dim=1))
+
+        return x[:, : self.oc // 2, ...], x[:, self.oc // 2 :, ...]
+
+
+class ConvEmb(nn.Module):
+    def __init__(self, input_dim, output_lg):
+        super().__init__()
+        ks = torch.clamp(input_dim[-2:] // 3, 1)
+        self.conv1 = nn.Conv2d(input_dim[1], input_dim[1] * 4, ks)
+        self.mpool_in = nn.MaxPool2d(tuple(ks), stride=1)
+        self.conv2 = nn.Conv2d(input_dim[1] * 5, 1, (1, 1))
+        self.act = nn.ReLU()
+
+        self.lin = nn.Linear(torch.prod(input_dim[-2:] - ks + 1), output_lg)
+
+    def forward(self, x, y):
+        emb_y = self.conv1(y)
+        emb_y = self.act(emb_y)
+        emb_y = torch.cat((self.mpool_in(y), emb_y), dim=1)
+        emb_y = self.conv2(emb_y)
+        emb_y = self.act(emb_y).flatten()
+        out = self.lin(emb_y) + x
+
+        return self.act(out)
+
+
+class MSConv(Transform):
+    def __init__(self, x_dim, y_dim, n_modules, n_c, k_sz, type = '2D'):
         super().__init__()
         self.x_dim = x_dim.clone()
         self.n_mod = n_modules
         self.transforms = nn.ModuleList([])
         self.ssplit = SpatialSplit()
-        self.base_dist = base
         self.type = type
 
         xd = x_dim.clone()
@@ -33,7 +79,6 @@ class ConvNPE(Transform):
         self.conv_y = nn.ModuleList([nn.Conv2d(4*y_dim[1], y_dim[1], 1) for _ in range(self.n_mod - 1)])
 
     def forward(self, x, y):
-        # EMBED !!!
         z = []
         ladj = x.new_zeros(x.shape[0])
         init_shape = x.shape
@@ -96,77 +141,7 @@ class ConvNPE(Transform):
         ladj = None
 
         return x, ladj
-
-    def sample(self, y, n, max_samp = None):
-        #try flow(y) to create a sampler
-        #DEAL WITH TOO MUCH SAMPLE (distribute for inverse pass)
-        assert y.shape[0] == 1, "Can only condition on a single observation for sampling"
-        x_s = []
-        while n > 0:
-            ns = int(np.minimum(n, max_samp if max_samp is not None else np.inf)) 
-            y = y.expand(ns, -1, -1, -1)
-            z = self.base_dist().sample((ns,))
-            s_dim = self.x_dim
-            s_dim[0] = ns
-            z = z.reshape(tuple(s_dim))
-            x_s.append(self.inverse(z, y)[0])
-            n -= ns
-        
-        return torch.cat(x_s, dim = 0)
-
-    def loss(self, x, y):
-        z, ladj = self.forward(x,y)
-        z = z.reshape((z.shape[0], -1)) # B x elem
-        return -(ladj + self.base_dist().log_prob(z)).mean()
-
-
-class ConvCoup(nn.Module):
-    def __init__(self, input_chan, output_chan, lay=3, chan=32, ks=3):
-        super().__init__()
-
-        assert output_chan % 2 == 0, "Need pair output channel"
-        self.oc = output_chan
-        self.head = nn.Conv2d(input_chan, chan, ks, padding=(ks - 1) // 2)
-        self.conv = nn.ModuleList(
-            [nn.Conv2d(chan + input_chan, chan, 1) for _ in range(lay)]
-        )
-        self.tail = nn.Conv2d(chan + input_chan, output_chan, ks, padding=(ks - 1) // 2)
-        self.act = nn.ReLU()
-
-    def forward(self, x):
-        x_skip = x
-        x = self.head(x)
-        for c in self.conv:
-            x = self.act(x)
-            x = c(torch.cat((x, x_skip), dim=1))
-
-        x = self.act(x)
-        x = self.tail(torch.cat((x, x_skip), dim=1))
-
-        return x[:, : self.oc // 2, ...], x[:, self.oc // 2 :, ...]
-
-
-class ConvEmb(nn.Module):
-    def __init__(self, input_dim, output_lg):
-        super().__init__()
-        ks = torch.clamp(input_dim[-2:] // 3, 1)
-        self.conv1 = nn.Conv2d(input_dim[1], input_dim[1] * 4, ks)
-        self.mpool_in = nn.MaxPool2d(tuple(ks), stride=1)
-        self.conv2 = nn.Conv2d(input_dim[1] * 5, 1, (1, 1))
-        self.act = nn.ReLU()
-
-        self.lin = nn.Linear(torch.prod(input_dim[-2:] - ks + 1), output_lg)
-
-    def forward(self, x, y):
-        emb_y = self.conv1(y)
-        emb_y = self.act(emb_y)
-        emb_y = torch.cat((self.mpool_in(y), emb_y), dim=1)
-        emb_y = self.conv2(emb_y)
-        emb_y = self.act(emb_y).flatten()
-        out = self.lin(emb_y) + x
-
-        return self.act(out)
-
+    
 
 class ConvStep(Transform):
     def __init__(self, input_dim, context_dim, n_conv, kernel_sz):
@@ -253,10 +228,12 @@ if __name__ == "__main__":
     import os 
     os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 
+    from zuko.distributions import DiagNormal 
+
     x_dim = (20, 1, 1, 16)
     y_dim = (20, 1, 1, 16)
     elm = x_dim[-2]*x_dim[-1]
-    cs = ConvNPE(torch.tensor(x_dim), torch.tensor(y_dim), DiagNormal(torch.zeros(elm), torch.ones(elm)), 2, 1, torch.tensor((3,1)), type = '1D')
+    # ADD MODULE CS TO TEST
     x = torch.randn(x_dim)
     y = torch.randn(y_dim)
     # print(x[0,0])
