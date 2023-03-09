@@ -31,14 +31,14 @@ PATH.mkdir(parents=True, exist_ok=True)
 
 CONFIG = {
     # Architecture
-    'embedding': [2, 4, 8],
+    'embedding': [2, 3, 4],
     'kernel_size': [2, 3, 4],
     'ms_modules': [1],
-    'num_conv' : [2, 4, 6, 8],
-    'N_ms' : [1, 2, 3, 4],
+    'num_conv' : [2, 3, 4, 5],
+    'N_ms' : [1, 2, 3],
     # Training
-    'epochs': [1],#[128, 192, 256, 384, 512],
-    'batch_size': [32, 64],
+    'epochs': [128, 192, 256, 384],
+    'batch_size': [16, 32],
     'step_per_batch': [64, 128, 256],
     'optimizer': ['AdamW'],
     'learning_rate': np.geomspace(1e-3, 1e-4).tolist(),
@@ -132,7 +132,7 @@ def train(i: int):
     epochs = config['epochs']
     batch_size = config['batch_size']
     step_per_batch = config['step_per_batch']
-    best = 0.05
+    best = 200
 
     ## Optimizer
     if config['optimizer'] == 'AdamW':

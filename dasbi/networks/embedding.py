@@ -10,8 +10,8 @@ class EmbedObs(nn.Module):
         self.register_buffer('freq', torch.cat([torch.arange(i, i+h//2) for i in range(1, w+1)])*torch.pi)
 
         # assumption obs have smaller size than x 
-        self.extract = nn.ModuleList([nn.Conv2d(self.y_shape[1] if i == 0 else 32*i, 32*(i+1), 1) for i in range(conv_lay)])
-        self.upsample = nn.ConvTranspose2d(32*conv_lay, 32, (self.x_shape[-2] - self.y_shape[-2] + 1, self.x_shape[-1] - self.y_shape[-1] + 1))
+        self.extract = nn.ModuleList([nn.Conv2d(self.y_shape[1] if i == 0 else 4*i, 4*(i+1), 1) for i in range(conv_lay)])
+        self.upsample = nn.ConvTranspose2d(4*conv_lay, 32, (self.x_shape[-2] - self.y_shape[-2] + 1, self.x_shape[-1] - self.y_shape[-1] + 1))
         self.head = nn.Conv2d(32, self.x_shape[1], 1)
 
     def time_embed(self, t):

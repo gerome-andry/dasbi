@@ -1,6 +1,7 @@
 from ..networks.nfmodules import MSConv
 import torch
 import torch.nn as nn
+import numpy as np                      
 
 class ConvNPE(nn.Module):
     def __init__(self, n_lay, base, emb_net, module_args):
@@ -21,9 +22,9 @@ class ConvNPE(nn.Module):
     def inverse(self, z, y, t):
         y_t = self.embed(y,t)
         for mc in self.convmod:
-            z, _ = mc(z, y_t)
+            z, _ = mc.inverse(z, y_t)
         
-        return x
+        return z
     
     def sample(self, y, t, n, max_samp = None):
         assert y.shape[0] == 1, "Can only condition on a single observation for sampling"
