@@ -63,8 +63,8 @@ CONFIG = {
 
 def build(**config):
     mod_args = {
-        'x_dim' : config['x_dim'],
-        'y_dim' : config['y_dim_emb'],
+        'x_dim' : torch.tensor(config['x_dim']),
+        'y_dim' : torch.tensor(config['y_dim_emb']),
         'n_modules' : config['ms_modules'],
         'n_c' : config['num_conv'],
         'k_sz' : torch.tensor((config['kernel_size'],1)),
