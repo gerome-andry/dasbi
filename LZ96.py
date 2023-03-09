@@ -57,7 +57,7 @@ CONFIG = {
     'x_dim' : [(1, 1, 32, 1)],
     'y_dim' : [(1, 1, 6, 1)],
     'y_dim_emb' : [(1, 2, 32, 1)],
-    'observer_fp' : ['./observer32LZ.pickle']
+    'observer_fp' : ['experiments/observer32LZ.pickle']
 }
 
 
