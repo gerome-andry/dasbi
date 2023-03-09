@@ -13,6 +13,11 @@ import seaborn
 import time
 import wandb
 
+import sys
+ 
+# setting path
+sys.path.append('../dasbi')
+
 from dawgz import job, schedule
 from pathlib import Path
 from tqdm import trange
@@ -20,9 +25,9 @@ from typing import *
 
 from zuko.distributions import DiagNormal
 from zuko.flows import Unconditional
-from ..dasbi.inference.models import ConvNPE as NPE
-from ..dasbi.networks.embedding import EmbedObs
-from ..dasbi.simulators.sim_lorenz96 import LZ96 as sim 
+from dasbi.inference.models import ConvNPE as NPE
+from dasbi.networks.embedding import EmbedObs
+from dasbi.simulators.sim_lorenz96 import LZ96 as sim 
 
 
 SCRATCH = os.environ.get('SCRATCH', '.')
