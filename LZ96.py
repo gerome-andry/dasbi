@@ -54,9 +54,9 @@ CONFIG = {
     'noise' : [.5],
     'train_sim' : [2**10],
     'val_sim' : [2**8],
-    'x_dim' : [torch.tensor((1, 1, 32, 1))],
-    'y_dim' : [torch.tensor((1, 1, 6, 1))],
-    'y_dim_emb' : [torch.tensor((1, 2, 32, 1))],
+    'x_dim' : [(1, 1, 32, 1)],
+    'y_dim' : [(1, 1, 6, 1)],
+    'y_dim_emb' : [(1, 2, 32, 1)],
     'observer_fp' : ['experiments/observer32LZ.pickle']
 }
 
@@ -79,7 +79,7 @@ def build(**config):
             buffer=True,
         )
     
-    emb_net = EmbedObs(config['y_dim'], config['x_dim'], conv_lay = config['embedding'])
+    emb_net = EmbedObs(torch.tensor(config['y_dim']), torch.tensor(config['x_dim']), conv_lay = config['embedding'])
     return NPE(config['N_ms'], base, emb_net, mod_args)
 
 
