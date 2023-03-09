@@ -11,12 +11,7 @@ import pickle
 import random
 import seaborn
 import time
-import wandb
-
-import sys
- 
-# setting path
-sys.path.append('../dasbi')
+import wandb    
 
 from dawgz import job, schedule
 from pathlib import Path
@@ -285,7 +280,7 @@ if __name__ == '__main__':
         backend='slurm',
         settings={'export': 'ALL'},
         env=[
-            'conda activate dasbi',
+            'conda activate DASBI',
             'export WANDB_SILENT=true',
         ],
     )
