@@ -12,13 +12,27 @@ from tqdm import tqdm
 
 import wandb
 
+# wandb.login()
+# fbdbacb541a16364f2016c691c059166f30d86bb
+
 # GENERATE DATA AND OBSERVATIONS
 torch.manual_seed(42)
 
+sweep_configuration = {
+    'method': 'random',
+    'name': 'sweep_test',
+    'metric': {
+        'goal': 'minimize', 
+        'name': 'train_loss'
+        },
+    'parameters': {
+        'batch_size': {'values': [16, 32, 64]},
+        'step_per_batch': {'max': 128, 'min': 64}
+     }
+}
+sweep_id = wandb.sweep(sweep=sweep_configuration, project='dasbi')
+
 n_sim = 2**10
-batch_size = 32
-step_per_batch = 128
-n_epochs = 4
 
 N = 32 
 
@@ -82,64 +96,72 @@ y_dim_emb = torch.tensor((1, 2, N, 1))
 mod_args = {'x_dim' : x_dim,
             'y_dim' : y_dim_emb,
             'n_modules' : 1,
-            'n_c' : 3,
+            'n_c' : 1,
             'k_sz' : torch.tensor((4, 1)),
             'type' : '1D'}
 
-wandb.init(
-    project = 'dasbi',
-    config = {**{
-        'architecture':'NPE2',
-        'epoch': 4,
-        'layers':3
-        }, **mod_args},
-    name = 'test_name'
-)
-model = NPE(3, base, emb_net, mod_args)
+# wandb.init(
+#     project = 'dasbi',
+#     config = {**{
+#         'architecture':'NPE2',
+#         'epoch': 4,
+#         'layers':1
+#         }, **mod_args},
+#     name = 'test'
+# )
+def main_train():
+    wandb.init(group = 'sweep_test')
+    batch_size = wandb.config.batch_size
+    step_per_batch = wandb.config.step_per_batch
+    n_epochs = 5
 
-optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
-scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    optimizer,
-    factor=0.5,
-    min_lr=1e-5,
-    patience=32,
-    threshold=1e-2,
-    threshold_mode='abs',
-)
+    model = NPE(1, base, emb_net, mod_args)
 
-loss_plt = []
-with tqdm(range(n_epochs), unit='epoch') as tq: #256 epoch
-    for epoch in tq:
-        subset_batch = torch.randint(len(simulator.data), (batch_size,))
-        losses = []
+    wandb.watch(model)
+    
+    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer,
+        factor=0.5,
+        min_lr=1e-5,
+        patience=32,
+        threshold=1e-2,
+        threshold_mode='abs',
+    )
 
-        for xb,yb,tb in zip(simulator.data[subset_batch], simulator.obs[subset_batch], simulator.time[subset_batch]):
-            subset_data = torch.randint(traj_len, (step_per_batch,))
-            x,y,t = xb[subset_data], yb[subset_data], tb[subset_data]
-            x = x[:,None,...,None]
-            y = y[:,None,...,None]
-            l = model.loss(x, y, t)
+    loss_plt = []
+    with tqdm(range(n_epochs), unit='epoch') as tq: #256 epoch
+        for epoch in tq:
+            subset_batch = torch.randint(len(simulator.data), (batch_size,))
+            losses = []
 
-            optimizer.zero_grad()
-            l.backward()
-            optimizer.step()
+            for xb,yb,tb in zip(simulator.data[subset_batch], simulator.obs[subset_batch], simulator.time[subset_batch]):
+                subset_data = torch.randint(traj_len, (step_per_batch,))
+                x,y,t = xb[subset_data], yb[subset_data], tb[subset_data]
+                x = x[:,None,...,None]
+                y = y[:,None,...,None]
+                l = model.loss(x, y, t)
 
-            losses.append(l.item())
+                optimizer.zero_grad()
+                l.backward()
+                optimizer.step()
+
+                losses.append(l.item())
 
 
-        l = sum(losses) / len(losses)
+            l = sum(losses) / len(losses)
 
-        wandb.log({'train_loss' : l})
-        loss_plt += [l]
-        torch.save(model, f'mod_epoch_{epoch}.pt')
-        torch.save(emb_net, f'emb_epoch_{epoch}.pt')
+            wandb.log({'train_loss' : l})
+            loss_plt += [l]
+            # torch.save(model, f'mod_epoch_{epoch}.pt')
 
-        tq.set_postfix(loss=l, lr=optimizer.param_groups[0]['lr'])
-        scheduler.step(l)
+            tq.set_postfix(loss=l, lr=optimizer.param_groups[0]['lr'])
+            scheduler.step(l)
 
-import matplotlib.pyplot as plt 
-plt.plot(loss_plt)
-plt.show()
+wandb.agent(sweep_id, function = main_train, count = 3)
+# import matplotlib.pyplot as plt 
+# plt.plot(loss_plt)
+# plt.show()
 
 # EVALUATE THE MODEL 
 
