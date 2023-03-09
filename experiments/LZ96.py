@@ -37,7 +37,7 @@ CONFIG = {
     'num_conv' : [2, 4, 6, 8],
     'N_ms' : [1, 2, 3, 4],
     # Training
-    'epochs': [128, 192, 256, 384, 512],
+    'epochs': [1],#[128, 192, 256, 384, 512],
     'batch_size': [32, 64],
     'step_per_batch': [64, 128, 256],
     'optimizer': ['AdamW'],
@@ -93,7 +93,7 @@ def process_sim(simulator):
     simulator.time = (simulator.time - MUT)/SIGMAT
 
 
-@job(array=32, cpus=2, gpus=1, ram='32GB', time='06:00:00')
+@job(array=1, cpus=2, gpus=1, ram='32GB', time='01:00:00')
 def train(i: int):
     config = {
         key: random.choice(values)
