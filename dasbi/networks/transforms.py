@@ -50,7 +50,7 @@ class InvConv(Transform):
         self.mode = mode
         self.net = kern_net
         self.ks = kernel_sz
-        self.kernel = nn.Parameter(torch.randn(params_k - 1))
+        self.kernel = nn.Parameter(torch.rand(params_k - 1))
 
         self.mask = torch.ones(tuple(self.ks), dtype=torch.bool)
         hpad, wpad = self.ks - 1

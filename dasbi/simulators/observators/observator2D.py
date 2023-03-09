@@ -38,7 +38,6 @@ class ObservatorStation2D:
 
         self.station = x_pos, y_pos
 
-
     def observe(self, data):
         eval_grid = torch.meshgrid(
             torch.arange(-self.aoe[0], self.aoe[0] + 1),

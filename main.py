@@ -18,19 +18,19 @@ import wandb
 # GENERATE DATA AND OBSERVATIONS
 torch.manual_seed(42)
 
-sweep_configuration = {
-    'method': 'random',
-    'name': 'sweep_test',
-    'metric': {
-        'goal': 'minimize', 
-        'name': 'train_loss'
-        },
-    'parameters': {
-        'batch_size': {'values': [16, 32, 64]},
-        'step_per_batch': {'max': 128, 'min': 64}
-     }
-}
-sweep_id = wandb.sweep(sweep=sweep_configuration, project='dasbi')
+# sweep_configuration = {
+#     'method': 'random',
+#     'name': 'mysweep',
+#     'metric': {
+#         'goal': 'minimize', 
+#         'name': 'train_loss'
+#         },
+#     'parameters': {
+#         'batch_size': {'values': [16, 32, 64]},
+#         'step_per_batch': {'max': 128, 'min': 64}
+#      }
+# }
+# sweep_id = wandb.sweep(sweep=sweep_configuration, project='dasbi')
 
 n_sim = 2**10
 
@@ -40,7 +40,11 @@ simulator = sim(N = N, noise=.5)
 observer = ObservatorStation2D((32,1), (4,1), (2,1), (4,1), (2,1))
 simulator.init_observer(observer)
 
-tmax = 5
+# import pickle
+# with open('observer32LZ.pickle', 'wb') as handle:
+#     pickle.dump(observer, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+tmax = 10
 traj_len = 256
 times = torch.linspace(0, tmax, traj_len)
 
@@ -109,6 +113,7 @@ mod_args = {'x_dim' : x_dim,
 #         }, **mod_args},
 #     name = 'test'
 # )
+
 def main_train():
     wandb.init(group = 'sweep_test')
     batch_size = wandb.config.batch_size
@@ -117,7 +122,7 @@ def main_train():
 
     model = NPE(1, base, emb_net, mod_args)
 
-    wandb.watch(model)
+    wandb.watch(model, log_freq = 1)
     
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(

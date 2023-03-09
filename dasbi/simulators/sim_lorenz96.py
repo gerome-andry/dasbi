@@ -21,14 +21,14 @@ class LZ96(Simulator):
     def generate_steps(self, x0, t_vect, observe=True):
         super().generate_steps(x0, t_vect, observe)
 
-        print("Generating steps")
+        # print("Generating steps")
         sol = solve_ivp(self.odefun, x0, t_vect)
         self.data = sol.ys
         self.time = sol.ts
-        print(self.data.shape)
+        # print(self.data.shape)
 
         if observe:
-            print("Starting observations")
+            # print("Starting observations")
             self.obs = self.observe(data=self.data)
 
     def odefun(self, t, init_state):
@@ -77,7 +77,7 @@ class LZ96(Simulator):
         observation = self.observer.observe(data.unsqueeze(-1)).squeeze(-1)
         # print(self.obs.shape)
 
-        for i in tqdm(range(observation.shape[0])):
+        for i in range(observation.shape[0]):
             observation[i] += self.noise_amp * torch.randn_like(observation[i])
         
         return observation
