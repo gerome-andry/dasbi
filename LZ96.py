@@ -34,10 +34,10 @@ CONFIG = {
     'embedding': [2, 3, 4],
     'kernel_size': [2, 3, 4],
     'ms_modules': [1],
-    'num_conv' : [2, 3, 4, 5],
+    'num_conv' : [2, 3],
     'N_ms' : [1, 2, 3],
     # Training
-    'epochs': [128, 192, 256, 384],
+    'epochs': [128, 256],
     'batch_size': [16, 32],
     'step_per_batch': [64, 128, 256],
     'optimizer': ['AdamW'],
@@ -93,7 +93,7 @@ def process_sim(simulator):
     simulator.time = (simulator.time - MUT)/SIGMAT
 
 
-@job(array=1, cpus=2, gpus=1, ram='32GB', time='01:00:00')
+@job(array=32, cpus=2, gpus=1, ram='32GB', time='20:00:00')
 def train(i: int):
     config = {
         key: random.choice(values)
@@ -236,6 +236,7 @@ def train(i: int):
     state = torch.load(checkpoints[-1])
 
     conv_npe.load_state_dict(state)
+    conv_npe.eval()
 
     # Evaluation
     sime = sim(N = config['points'], noise = config['noise'])
@@ -248,8 +249,12 @@ def train(i: int):
     y = y[:, None, :, None]
     t = t.unsqueeze(0)
 
-    traj = conv_npe.sample(y, t, 3).squeeze().cpu().numpy()
-    
+    traj = []
+    for yt, t in zip(y, t):
+        samp = conv_npe.sample(yt.unsqueeze(0), t.unsqueeze(0), 3).cpu().numpy()
+        traj.append(samp.unsqueeze(0))
+    traj = torch.cat(traj, dim = 0).squeeze()
+
     fig, axs = plt.subplots(4, 1, figsize=(7, 7))
     figo, axso = plt.subplots(4, 1, figsize=(7, 7))
 
@@ -269,7 +274,7 @@ def train(i: int):
     figo.tight_layout()
 
     run.log({'sample_traj': wandb.Image(fig)})
-    run.log({'sample_obs': wandb.Image(fig)})
+    run.log({'sample_obs': wandb.Image(figo)})
     run.finish()
 
 
