@@ -31,21 +31,23 @@ torch.manual_seed(42)
 #      }
 # }
 # sweep_id = wandb.sweep(sweep=sweep_configuration, project='dasbi')
+import pickle
 
 n_sim = 2**10
 
 N = 32 
 
 simulator = sim(N = N, noise=.5)
-observer = ObservatorStation2D((32,1), (4,1), (2,1), (4,1), (2,1))
+observer = ObservatorStation2D((N,1), (4,1), (2,1), (4,1), (2,1))
+with open('experiments/observer32LZ.pickle', 'rb') as handle:
+    observer = pickle.load(handle)
 simulator.init_observer(observer)
 
-# import pickle
-# with open('observer32LZ.pickle', 'wb') as handle:
+# with open('experiments/observer128LZ.pickle', 'wb') as handle:
 #     pickle.dump(observer, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 tmax = 10
-traj_len = 256
+traj_len = 1024
 times = torch.linspace(0, tmax, traj_len)
 
 simulator.generate_steps(torch.randn((n_sim, N)), times)
@@ -80,9 +82,10 @@ def postprocess_t(t):
 
 # TRAIN A MODEL 
 
-simulator.data = preprocess_x(simulator.data)
-simulator.obs = preprocess_y(simulator.obs)
-simulator.time = preprocess_t(simulator.time)
+simulator.data = preprocess_x(simulator.data)[:,:200]
+simulator.obs = preprocess_y(simulator.obs)[:,:200]
+simulator.time = preprocess_t(simulator.time)[:,:200]
+simulator.display_sim(obs = True, filename='hovGT')
 
 base = Unconditional(
             DiagNormal,
@@ -93,16 +96,26 @@ base = Unconditional(
 
 x_dim = torch.tensor((1, 1, N, 1))
 y_dim = torch.tensor((1, 1, 6, 1))
-emb_net = EmbedObs(y_dim, x_dim)
+emb_net = EmbedObs(y_dim, x_dim, conv_lay=4)
 
 y_dim_emb = torch.tensor((1, 2, N, 1))
 
 mod_args = {'x_dim' : x_dim,
             'y_dim' : y_dim_emb,
             'n_modules' : 1,
-            'n_c' : 1,
-            'k_sz' : torch.tensor((4, 1)),
+            'n_c' : 2,
+            'k_sz' : torch.tensor((2, 1)),
             'type' : '1D'}
+
+model = NPE(1, base, emb_net, mod_args)
+
+with torch.no_grad():
+    model(simulator.data[None,None, 0, 0, :, None], simulator.obs[None,None, 0, 0, :, None], simulator.time[0, 0, None])
+
+state = torch.load('checkpoint_0188.pth', map_location = torch.device('cpu'))
+
+model.load_state_dict(state)
+model.eval()
 
 # wandb.init(
 #     project = 'dasbi',
@@ -114,56 +127,56 @@ mod_args = {'x_dim' : x_dim,
 #     name = 'test'
 # )
 
-def main_train():
-    wandb.init(group = 'sweep_test')
-    batch_size = wandb.config.batch_size
-    step_per_batch = wandb.config.step_per_batch
-    n_epochs = 5
+# def main_train():
+#     wandb.init(group = 'sweep_test')
+#     batch_size = wandb.config.batch_size
+#     step_per_batch = wandb.config.step_per_batch
+#     n_epochs = 5
 
-    model = NPE(1, base, emb_net, mod_args)
+#     model = NPE(1, base, emb_net, mod_args)
 
-    wandb.watch(model, log_freq = 1)
+#     wandb.watch(model, log_freq = 1)
     
-    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer,
-        factor=0.5,
-        min_lr=1e-5,
-        patience=32,
-        threshold=1e-2,
-        threshold_mode='abs',
-    )
+#     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
+#     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+#         optimizer,
+#         factor=0.5,
+#         min_lr=1e-5,
+#         patience=32,
+#         threshold=1e-2,
+#         threshold_mode='abs',
+#     )
 
-    loss_plt = []
-    with tqdm(range(n_epochs), unit='epoch') as tq: #256 epoch
-        for epoch in tq:
-            subset_batch = torch.randint(len(simulator.data), (batch_size,))
-            losses = []
+#     loss_plt = []
+#     with tqdm(range(n_epochs), unit='epoch') as tq: #256 epoch
+#         for epoch in tq:
+#             subset_batch = torch.randint(len(simulator.data), (batch_size,))
+#             losses = []
 
-            for xb,yb,tb in zip(simulator.data[subset_batch], simulator.obs[subset_batch], simulator.time[subset_batch]):
-                subset_data = torch.randint(traj_len, (step_per_batch,))
-                x,y,t = xb[subset_data], yb[subset_data], tb[subset_data]
-                x = x[:,None,...,None]
-                y = y[:,None,...,None]
-                l = model.loss(x, y, t)
+#             for xb,yb,tb in zip(simulator.data[subset_batch], simulator.obs[subset_batch], simulator.time[subset_batch]):
+#                 subset_data = torch.randint(traj_len, (step_per_batch,))
+#                 x,y,t = xb[subset_data], yb[subset_data], tb[subset_data]
+#                 x = x[:,None,...,None]
+#                 y = y[:,None,...,None]
+#                 l = model.loss(x, y, t)
 
-                optimizer.zero_grad()
-                l.backward()
-                optimizer.step()
+#                 optimizer.zero_grad()
+#                 l.backward()
+#                 optimizer.step()
 
-                losses.append(l.item())
+#                 losses.append(l.item())
 
 
-            l = sum(losses) / len(losses)
+#             l = sum(losses) / len(losses)
 
-            wandb.log({'train_loss' : l})
-            loss_plt += [l]
-            # torch.save(model, f'mod_epoch_{epoch}.pt')
+#             wandb.log({'train_loss' : l})
+#             loss_plt += [l]
+#             # torch.save(model, f'mod_epoch_{epoch}.pt')
 
-            tq.set_postfix(loss=l, lr=optimizer.param_groups[0]['lr'])
-            scheduler.step(l)
+#             tq.set_postfix(loss=l, lr=optimizer.param_groups[0]['lr'])
+#             scheduler.step(l)
 
-wandb.agent(sweep_id, function = main_train, count = 3)
+# wandb.agent(sweep_id, function = main_train, count = 3)
 # import matplotlib.pyplot as plt 
 # plt.plot(loss_plt)
 # plt.show()
@@ -203,46 +216,46 @@ wandb.agent(sweep_id, function = main_train, count = 3)
 # y = y[None, None, :, None]
 # t = t.unsqueeze(-1)
 
-# y_t = emb_net(y, t)
-# x_s = model.sample(y_t, 2**12, max_samp = 2**10).squeeze().detach()
-# x_s = postprocess_x(x_s)
-# print(x_s.shape)
+# x_s = model.sample(y, t, 2**12, max_samp = 2**7).squeeze().detach()
 
-# import lampe
+
+# # import lampe
 # from lampe.plots import corner, mark_point
 
-# fig = lampe.plots.corner(x_s[:,::5], smooth=1, figsize=(6.8, 6.8), legend="p(x | y*)")
+# fig = corner(x_s[:,::5], smooth=1, figsize=(6.8, 6.8), legend="p(x | y*)")
 
 # x_star = x.squeeze()[::5]
-# lampe.plots.mark_point(fig, x_star)
+# mark_point(fig, x_star)
 
 # fig.savefig('cornerNPEtestSimf.pdf')
 
 # y_s = simulator.observe(x_s)
-# fig = lampe.plots.corner(y_s, smooth=1, figsize=(6.8, 6.8), legend="p(y | y*)")
+# fig = corner(y_s, smooth=1, figsize=(6.8, 6.8), legend="p(y | y*)")
 
-# y_star = postprocess_y(y.squeeze())
-# lampe.plots.mark_point(fig, y_star)
+# y_star = y.squeeze()
+# mark_point(fig, y_star)
 
 # fig.savefig('cornerNPEtestObsf.pdf')
+# fig.clear()
 
 
 # EVALUATE TRAJECTORY
 
-# x,y,t = simulator.data[0], simulator.obs[0], simulator.time[0]
+x,y,t = simulator.data[0], simulator.obs[0], simulator.time[0]
 
-# x = x[:, None, :, None]
-# y = y[:, None, :, None]
-# t = t.unsqueeze(0)
+x = x[:, None, :, None]
+y = y[:, None, :, None]
+t = t.unsqueeze(1)
 
-# y_t = emb_net(y, t)
-# x_s = []
-# for yt in y_t:
-#     samp = model.sample(yt.unsqueeze(0), 256).squeeze().detach()
-#     samp = samp.mean(0)
-#     x_s.append(samp.unsqueeze(0))
+x_s = []
 
-# x_s = torch.cat(x_s, dim = 0)
-# simulator.data = x_s[None,...]
-# simulator.obs = simulator.observe()
-# simulator.display_sim(obs=True, filename='hovSAMP')
+for yt,tt in tqdm(zip(y[:200], t[:200])):
+    samp = model.sample(yt.unsqueeze(0), tt.unsqueeze(0), 128).squeeze().detach()
+    samp = samp.mean((0))
+    x_s.append(samp.unsqueeze(0))
+
+x_s = torch.cat(x_s, dim = 0)
+simulator.data = x_s[None,...]
+
+simulator.obs = simulator.observe()
+simulator.display_sim(obs=True, filename='hovSAMP')

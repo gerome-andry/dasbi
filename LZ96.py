@@ -37,9 +37,9 @@ CONFIG = {
     'num_conv' : [2, 3],
     'N_ms' : [1, 2, 3],
     # Training
-    'epochs': [128, 256],
+    'epochs': [128],
     'batch_size': [16, 32],
-    'step_per_batch': [64, 128, 256],
+    'step_per_batch': [64, 128],
     'optimizer': ['AdamW'],
     'learning_rate': np.geomspace(1e-3, 1e-4).tolist(),
     'weight_decay': np.geomspace(1e-2, 1e-4).tolist(),
@@ -93,7 +93,7 @@ def process_sim(simulator):
     simulator.time = (simulator.time - MUT)/SIGMAT
 
 
-@job(array=32, cpus=2, gpus=1, ram='32GB', time='20:00:00')
+@job(array=32, cpus=2, gpus=1, ram='32GB', time='1-20:00:00')
 def train(i: int):
     config = {
         key: random.choice(values)
@@ -251,7 +251,7 @@ def train(i: int):
 
     traj = []
     for yt, t in zip(y, t):
-        samp = conv_npe.sample(yt.unsqueeze(0), t.unsqueeze(0), 3).cpu().numpy()
+        samp = conv_npe.sample(yt.unsqueeze(0), t.unsqueeze(1), 3).cpu().numpy()
         traj.append(samp.unsqueeze(0))
     traj = torch.cat(traj, dim = 0).squeeze()
 

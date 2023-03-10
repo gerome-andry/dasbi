@@ -3,10 +3,14 @@ import torch
 import torch.nn as nn
 import numpy as np                      
 
+class ConvNSE(nn.Module):
+    pass
+
 class ConvNPE(nn.Module):
     def __init__(self, n_lay, base, emb_net, module_args):
         super().__init__()
         self.convmod = nn.ModuleList([MSConv(**module_args) for _ in range(n_lay)])
+        self.x_dim = module_args['x_dim']
         self.embed = emb_net
         self.base_dist = base
 
@@ -32,6 +36,7 @@ class ConvNPE(nn.Module):
         while n > 0:
             ns = int(np.minimum(n, max_samp if max_samp is not None else np.inf)) 
             y = y.expand(ns, -1, -1, -1)
+            t = t.expand(ns, -1)
             z = self.base_dist().sample((ns,))
             s_dim = self.x_dim
             s_dim[0] = ns

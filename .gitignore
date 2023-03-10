@@ -2,6 +2,7 @@ trash/*
 NPETEST0/*
 wandb/*
 *.pt
+*.pth
 *.h5
 *.pdf
 *.npy
