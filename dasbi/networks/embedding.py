@@ -24,7 +24,7 @@ class EmbedObs(nn.Module):
         # plt.imshow(t)
         # plt.show()
         # plt.clf()
-        t = t.reshape((-1,)+self.x_shape[1:])
+        t = t.reshape((-1,1)+self.x_shape[2:])
 
         return t
     
