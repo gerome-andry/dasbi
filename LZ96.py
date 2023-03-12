@@ -31,19 +31,19 @@ PATH.mkdir(parents=True, exist_ok=True)
 
 CONFIG = {
     # Architecture
-    'embedding': [2, 3, 4],
-    'kernel_size': [2, 3, 4],
+    'embedding': [3],
+    'kernel_size': [2],
     'ms_modules': [1],
-    'num_conv' : [2, 3],
-    'N_ms' : [1, 2, 3],
+    'num_conv' : [2],
+    'N_ms' : [2],
     # Training
-    'epochs': [128],
-    'batch_size': [16, 32],
-    'step_per_batch': [64, 128],
+    'epochs': [256],
+    'batch_size': [32],
+    'step_per_batch': [128],
     'optimizer': ['AdamW'],
-    'learning_rate': np.geomspace(1e-3, 1e-4).tolist(),
-    'weight_decay': np.geomspace(1e-2, 1e-4).tolist(),
-    'scheduler': ['linear', 'cosine', 'exponential'],
+    'learning_rate': [3e-3],#np.geomspace(1e-3, 1e-4).tolist(),
+    'weight_decay': [1e-4],#np.geomspace(1e-2, 1e-4).tolist(),
+    'scheduler': ['linear'],#, 'cosine', 'exponential'],
     # Data
     'points' : [32],
     'noise' : [.5],

@@ -269,15 +269,6 @@ class QuadCoupling(Transform):
         return x, ladj
 
 
-class IdentityLayerx2(nn.Module):
-    def __init__(self, o_lg):
-        super().__init__()
-        self.o_lg = o_lg
-
-    def forward(self, x, y):
-        return y.sum(1).flatten()[: self.o_lg]  # , y.sum(1).flatten()[:self.o_lg] ** 2
-
-
 if __name__ == "__main__":
     # ac = QuadCoupling([IdentityLayerx2(),]*3, 0)
     # x = torch.randint(10,(20,4,2,2))
@@ -294,15 +285,6 @@ if __name__ == "__main__":
     # z,l = an.forward(x)
     # print(z.mean(dim = 0), z.std(dim = 0))
     # print(an.inverse(z))
-
-    ic = InvConv((3, 3), IdentityLayerx2(8), mode="LR")
-    x = torch.randint(10, (20, 1, 3, 3))
-    print(x)
-    y = torch.ones((1, 1, 3, 3))
-    z, _ = ic.forward(x.float(), y)
-    print(z)
-    x, _ = ic.inverse(z, y)
-    print(x)
 
     # ss = SpatialSplit()
     # x = torch.randint(10,(1,3,2,2))
