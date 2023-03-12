@@ -180,7 +180,9 @@ def train(i: int):
             
             x,y,t = xb[subset_data], torch.cat([yb[i-9:i+1].unsqueeze(0) for i in subset_data], dim = 0), tb[subset_data]
             x = x[:,None,...,None]
+            print(y.shape)
             y = y[...,None]
+            print(y.shape)
 
             optimizer.zero_grad()
             l = conv_npe.loss(x, y, t)
