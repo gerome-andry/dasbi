@@ -49,9 +49,10 @@ CONFIG = {
     'noise' : [.5],
     'train_sim' : [2**10],
     'val_sim' : [2**8],
+    # Test with assimilation window
     'x_dim' : [(1, 1, 32, 1)],
-    'y_dim' : [(1, 1, 6, 1)],
-    'y_dim_emb' : [(1, 2, 32, 1)],
+    'y_dim' : [(1, 10, 6, 1)],
+    'y_dim_emb' : [(1, 11, 32, 1)],
     'observer_fp' : ['experiments/observer32LZ.pickle']
 }
 
@@ -103,7 +104,7 @@ def train(i: int):
     with open(config['observer_fp'], 'rb') as handle:
         observer = pickle.load(handle) 
 
-    run = wandb.init(project='dasbi', config=config, group = 'LZ96_small')
+    run = wandb.init(project='dasbi', config=config, group = 'LZ96_small_window')
     runpath = PATH / f'runs/{run.name}_{run.id}'
     runpath.mkdir(parents=True, exist_ok=True)
 
@@ -171,14 +172,15 @@ def train(i: int):
 
         for xb,yb,tb in zip(simt.data[i].cuda(), simt.obs[i].cuda(), simt.time[i].cuda()):
             subset_data = np.random.choice(
-                            traj_len,
+                            np.arange(9, traj_len),
+                            #traj_len,
                             size=step_per_batch,
                             replace=False,
                             )
             
-            x,y,t = xb[subset_data], yb[subset_data], tb[subset_data]
+            x,y,t = xb[subset_data], torch.cat([yb[i-9:i+1].unsqueeze(0) for i in subset_data], dim = 0), tb[subset_data]
             x = x[:,None,...,None]
-            y = y[:,None,...,None]
+            y = y[...,None]
 
             optimizer.zero_grad()
             l = conv_npe.loss(x, y, t)
@@ -199,14 +201,15 @@ def train(i: int):
         with torch.no_grad():
             for xb,yb,tb in zip(simv.data[i].cuda(), simv.obs[i].cuda(), simv.time[i].cuda()):
                 subset_data = np.random.choice(
-                            traj_len,
-                            size=step_per_batch//4,
+                            np.arange(9, traj_len),
+                            #traj_len,
+                            size=step_per_batch,
                             replace=False,
                             )
                 
-                x,y,t = xb[subset_data], yb[subset_data], tb[subset_data]
+                x,y,t = xb[subset_data-1], torch.cat([yb[i-9:i+1].unsqueeze(0) for i in subset_data]), tb[subset_data]
                 x = x[:,None,...,None]
-                y = y[:,None,...,None]
+                y = y[...,None]
 
                 losses_val.append(conv_npe.loss(x, y, t))
 
@@ -243,10 +246,10 @@ def train(i: int):
     sime.init_observer(observer)
     sime.generate_steps(torch.randn((1, config['points'])), times)
     
-    x,y,t = sime.data[0], sime.obs[0], sime.time[0]
+    x,y,t = sime.data[9], sime.obs[:10], sime.time[9]
 
     x = x[:, None, :, None]
-    y = y[:, None, :, None]
+    y = y[None, :, :, None]
     t = t.unsqueeze(0)
 
     traj = []
