@@ -93,7 +93,7 @@ def process_sim(simulator):
     simulator.time = (simulator.time - MUT)/SIGMAT
 
 
-@job(array=32, cpus=2, gpus=1, ram='32GB', time='1-20:00:00')
+@job(array=1, cpus=2, gpus=1, ram='32GB', time='1-20:00:00')
 def train(i: int):
     config = {
         key: random.choice(values)
