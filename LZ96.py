@@ -228,7 +228,8 @@ def train(i: int):
         })
 
         ### Checkpoint
-        if loss_val < best * 0.95:
+
+        if loss_train < best * 0.95:
             best = loss_val
             torch.save(
                 conv_npe.state_dict(),
