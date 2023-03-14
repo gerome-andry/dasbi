@@ -47,13 +47,13 @@ CONFIG = {
     # Data
     'points' : [32],
     'noise' : [.5],
-    'train_sim' : [2**10],
-    'val_sim' : [2**8],
+    'train_sim' : [1],#2**10],
+    'val_sim' : [1],#2**8],
     # Test with assimilation window
     'x_dim' : [(1, 1, 32, 1)],
     'y_dim' : [(1, 10, 11, 1)],
-    'y_dim_emb' : [(1, 11, 32, 1)],
-    'observer_fp' : ['experiments/observer32moreLZ.pickle']
+    'y_dim_emb' : [(1, 6, 32, 1)],
+    'observer_fp' : ['experiments/observer32LZ.pickle']
 }
 
 
@@ -94,7 +94,7 @@ def process_sim(simulator):
     simulator.time = (simulator.time - MUT)/SIGMAT
 
 
-@job(array=1, cpus=2, gpus=1, ram='32GB', time='1-20:00:00')
+@job(array=1, cpus=2, gpus=1, ram='32GB', time='20:00:00')
 def train(i: int):
     config = {
         key: random.choice(values)
@@ -104,7 +104,7 @@ def train(i: int):
     with open(config['observer_fp'], 'rb') as handle:
         observer = pickle.load(handle) 
 
-    run = wandb.init(project='dasbi', config=config, group = 'LZ96_small_window_bigobs')
+    run = wandb.init(project='dasbi', config=config, group = 'LZ96_small_window_overfit')
     runpath = PATH / f'runs/{run.name}_{run.id}'
     runpath.mkdir(parents=True, exist_ok=True)
 
@@ -165,7 +165,8 @@ def train(i: int):
         i = np.random.choice(
             len(simt.data),
             size=batch_size,
-            replace=False,
+            replace = True
+            #replace=False,
         )
 
         start = time.time()
@@ -195,7 +196,8 @@ def train(i: int):
         i = np.random.choice(
             len(simv.data),
             size=batch_size//4,
-            replace=False,
+            replace = True
+            #replace=False,
         )
 
         with torch.no_grad():
