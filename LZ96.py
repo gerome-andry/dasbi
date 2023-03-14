@@ -118,6 +118,7 @@ def train(i: int):
 
     simt = sim(N = config['points'], noise = config['noise'])
     simt.init_observer(observer)
+    torch.manual_seed(42)
     simt.generate_steps(torch.randn((config['train_sim'], config['points'])), times)
     process_sim(simt)
     
