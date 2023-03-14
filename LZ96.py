@@ -47,8 +47,8 @@ CONFIG = {
     # Data
     'points' : [32],
     'noise' : [.5],
-    'train_sim' : [1],#2**10],
-    'val_sim' : [1],#2**8],
+    'train_sim' : [2],#2**10],
+    'val_sim' : [2],#2**8],
     # Test with assimilation window
     'x_dim' : [(1, 1, 32, 1)],
     'y_dim' : [(1, 10, 11, 1)],
