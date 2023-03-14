@@ -7,14 +7,16 @@
 \contentsline {subsection}{\numberline {2.2}Neural posterior estimation}{5}{subsection.2.2}%
 \contentsline {subsubsection}{\numberline {2.2.1}Normalizing flows}{5}{subsubsection.2.2.1}%
 \contentsline {subsection}{\numberline {2.3}Neural ratio estimation}{5}{subsection.2.3}%
+\contentsline {subsubsection}{\numberline {2.3.1}Classifier networks}{5}{subsubsection.2.3.1}%
 \contentsline {subsection}{\numberline {2.4}Neural score estimation}{5}{subsection.2.4}%
+\contentsline {subsubsection}{\numberline {2.4.1}Score-based models}{5}{subsubsection.2.4.1}%
 \contentsline {section}{\numberline {3}Application to data assimilation problems}{5}{section.3}%
 \contentsline {subsection}{\numberline {3.1}Assumptions}{5}{subsection.3.1}%
 \contentsline {subsection}{\numberline {3.2}NPE}{5}{subsection.3.2}%
 \contentsline {subsection}{\numberline {3.3}NRE}{5}{subsection.3.3}%
 \contentsline {subsection}{\numberline {3.4}NSE}{5}{subsection.3.4}%
-\contentsline {section}{\numberline {4}Experiments}{5}{section.4}%
-\contentsline {subsection}{\numberline {4.1}Evaluation protocol}{5}{subsection.4.1}%
+\contentsline {section}{\numberline {4}Experiments}{6}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Evaluation protocol}{6}{subsection.4.1}%
 \contentsline {subsection}{\numberline {4.2}Simulators}{6}{subsection.4.2}%
 \contentsline {subsubsection}{\numberline {4.2.1}Lorenz-96}{6}{subsubsection.4.2.1}%
 \contentsline {subsubsection}{\numberline {4.2.2}2D Kolmogorov flow}{6}{subsubsection.4.2.2}%

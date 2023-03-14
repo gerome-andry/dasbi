@@ -43,10 +43,10 @@ class LZ96(Simulator):
 
         return D
 
-    def display_sim(self, idx=0, obs=False, filename=None, delay=0.5, show=True):
+    def display_sim(self, idx=0, obs=False, filename=None, delay=0.5, show=True, minMax = (None, None, None, None)):
         data = self.data[idx].T
         col = sns.color_palette('coolwarm', as_cmap=True)
-        plt.imshow(data, cmap=col, interpolation="spline16")
+        plt.imshow(data, cmap=col, interpolation="spline16", vmin = minMax[0], vmax = minMax[1])
         plt.colorbar()
         plt.tight_layout()
 
@@ -60,7 +60,7 @@ class LZ96(Simulator):
 
             if obs:
                 data = self.obs[idx].T
-                plt.imshow(data, cmap=col, interpolation="spline16")
+                plt.imshow(data, cmap=col, interpolation="spline16", vmin = minMax[2], vmax = minMax[3])
                 plt.colorbar()
                 plt.tight_layout()
                 plt.show(block=False)

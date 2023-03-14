@@ -1,8 +1,8 @@
-PWD c:/Users/andry/Documents/ULG/Mast2/TFE/testSimul/datsbi/latex
+PWD c:/Users/andry/Documents/ULG/Mast2/TFE/dasbi/latex
 INPUT c:/texlive/2022/texmf.cnf
 INPUT c:/texlive/2022/texmf-dist/web2c/texmf.cnf
 INPUT c:/texlive/2022/texmf-var/web2c/pdftex/pdflatex.fmt
-INPUT c:/Users/andry/Documents/ULG/Mast2/TFE/testSimul/datsbi/latex/ThesisReport.tex
+INPUT c:/Users/andry/Documents/ULG/Mast2/TFE/dasbi/latex/ThesisReport.tex
 OUTPUT ThesisReport.log
 INPUT c:/texlive/2022/texmf-dist/tex/latex/base/article.cls
 INPUT c:/texlive/2022/texmf-dist/tex/latex/base/article.cls

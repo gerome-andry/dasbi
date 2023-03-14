@@ -62,11 +62,13 @@ General purpose (from which SBI is in)
 
 \section{SBI framework}
 \subsection{Introduction}
-Frontier SBI + packages (nflows Cranmer, lampe, zuko, ... ?)
+Frontier SBI + packages (nflows Cranmer, lampe, zuko, ... ?), Bayes, ...
 \subsection{Neural posterior estimation}
 \subsubsection{Normalizing flows}
 \subsection{Neural ratio estimation}
+\subsubsection{Classifier networks}
 \subsection{Neural score estimation}
+\subsubsection{Score-based models}
 
 \section{Application to data assimilation problems}
 \subsection{Assumptions}
@@ -76,6 +78,7 @@ spatial structure, ... TIME embed -> no ass about stationarity of density (menti
 
 \subsection{NPE}
 speak here about Multi scale flow
+Do not work well but try other flow ... ?
 \subsection{NRE}
 speak here about state density 
 \subsection{NSE}
@@ -83,7 +86,15 @@ novel method, high dimensionality expectation, domain generalization
 
 \section{Experiments}
 \subsection{Evaluation protocol}
-Add a word about architectures in appendix
+Add a word about architectures in appendix.
+Training + validation on WndB, then evaluation 
+Corner plot (comparison between methods)
+Sampled trajectory (qualitative)
+Loss (link between NSE and NPE ?)
+Observation coherence (special word when assimilation window but ok)
+Physical coherence (take a look at samples given specific observations OR train a 
+discriminative classifier between the sampler and the true states -> if good, not good samples)
+
 \subsection{Simulators}
 \subsubsection{Lorenz-96}
 \subsubsection{2D Kolmogorov flow}
