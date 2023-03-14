@@ -51,8 +51,8 @@ CONFIG = {
     'val_sim' : [2],#2**8],
     # Test with assimilation window
     'x_dim' : [(1, 1, 32, 1)],
-    'y_dim' : [(1, 10, 11, 1)],
-    'y_dim_emb' : [(1, 6, 32, 1)],
+    'y_dim' : [(1, 10, 6, 1)],
+    'y_dim_emb' : [(1, 11, 32, 1)],
     'observer_fp' : ['experiments/observer32LZ.pickle']
 }
 
