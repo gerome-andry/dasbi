@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from .transforms import *
 import numpy as np
-    
+
 
 class ConvCoup(nn.Module):
     def __init__(self, input_chan, output_chan, lay=3, chan=32, ks=3):
@@ -53,7 +53,7 @@ class ConvEmb(nn.Module):
 
 
 class MSConv(Transform):
-    def __init__(self, x_dim, y_dim, n_modules, n_c, k_sz, type = '2D'):
+    def __init__(self, x_dim, y_dim, n_modules, n_c, k_sz, type="2D"):
         super().__init__()
         self.x_dim = x_dim.clone()
         self.n_mod = n_modules
@@ -66,7 +66,7 @@ class MSConv(Transform):
         for _ in range(n_modules):
             self.transforms.append(ConvStep(xd, yd, n_c, k_sz))
             xd[1] *= 3
-            if type == '2D':
+            if type == "2D":
                 xd[-2:] //= 2
                 yd[-2:] //= 2
             else:
@@ -76,25 +76,28 @@ class MSConv(Transform):
             xd[-2:] = torch.clamp(x_dim[-2:], 1)
             yd[-2:] = torch.clamp(y_dim[-2:], 1)
 
-        self.conv_y = nn.ModuleList([nn.Conv2d(4*y_dim[1], y_dim[1], 1) for _ in range(self.n_mod - 1)])
+        self.conv_y = nn.ModuleList(
+            [nn.Conv2d(4 * y_dim[1], y_dim[1], 1) for _ in range(self.n_mod - 1)]
+        )
 
     def forward(self, x, y):
         z = []
+        x_old = x.clone()
         ladj = x.new_zeros(x.shape[0])
         init_shape = x.shape
         for i, t in enumerate(self.transforms):
             z_i, ladj_i = t(x, y)
             c = z_i.shape[1]
-            z_i, x = z_i.split((c*1//4, c*3//4), dim = 1)
+            z_i, x = z_i.split((c * 1 // 4, c * 3 // 4), dim=1)
             z.append(z_i)
             ladj += ladj_i
             if i < self.n_mod - 1:
                 y, _ = self.ssplit(y)
                 y = self.conv_y[i](y)
-        
+
         z.append(x)
         z = [x.flatten(1) for x in z]
-        z = torch.cat(z, dim = 1).reshape(init_shape)
+        z = torch.cat(z, dim=1).reshape(init_shape)
 
         return z, ladj
 
@@ -105,29 +108,29 @@ class MSConv(Transform):
             emb_context.append(c_y(y))
         emb_context.reverse()
 
-        b,c,h,w = z.shape
+        b, c, h, w = z.shape
         shapes = []
         for i in range(self.n_mod):
-            if self.type == '2D':
-                new_h = torch.clamp(torch.tensor([h//2]), 1)
-                new_w = torch.clamp(torch.tensor([w//2]), 1)
+            if self.type == "2D":
+                new_h = torch.clamp(torch.tensor([h // 2]), 1)
+                new_w = torch.clamp(torch.tensor([w // 2]), 1)
             else:
-                new_h = torch.clamp(torch.tensor([h//4]), 1)
-                new_w = torch.clamp(torch.tensor([w//4]), 1)
+                new_h = torch.clamp(torch.tensor([h // 4]), 1)
+                new_w = torch.clamp(torch.tensor([w // 4]), 1)
 
-            shapes.append((b,c,new_h, new_w))
+            shapes.append((b, c, new_h, new_w))
             c *= 3
             h = new_h
             w = new_w
 
-        shapes.append((b,c,h,w))
-        x = z.reshape(b,-1)
-        x_f_ls = x.split([torch.prod(torch.tensor(S[1:])) for S in shapes], dim = 1)
+        shapes.append((b, c, h, w))
+        x = z.reshape(b, -1)
+        x_f_ls = x.split([torch.prod(torch.tensor(S[1:])) for S in shapes], dim=1)
         x_i = []
         for i, x_f in enumerate(x_f_ls):
-            x_i.append(x_f.unflatten(1,shapes[i][1:]))
-        
-        x_i[-2] = torch.cat((x_i[-2], x_i[-1]), dim = 1)
+            x_i.append(x_f.unflatten(1, shapes[i][1:]))
+
+        x_i[-2] = torch.cat((x_i[-2], x_i[-1]), dim=1)
         x_i = x_i[:-1]
         x_i.reverse()
 
@@ -135,13 +138,13 @@ class MSConv(Transform):
         for i, t in enumerate(reversed(self.transforms)):
             x_trans, _ = t.inverse(x_trans, emb_context[i])
             if i < len(self.transforms) - 1:
-                x_trans = torch.cat((x_i[i+1], x_trans), dim = 1)
+                x_trans = torch.cat((x_i[i + 1], x_trans), dim=1)
 
         x = x_trans
         ladj = None
 
         return x, ladj
-    
+
 
 class ConvStep(Transform):
     def __init__(self, input_dim, context_dim, n_conv, kernel_sz):
@@ -225,14 +228,15 @@ class ConvStep(Transform):
 
 
 if __name__ == "__main__":
-    import os 
+    import os
+
     os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 
-    from zuko.distributions import DiagNormal 
+    from zuko.distributions import DiagNormal
 
     x_dim = (20, 1, 1, 16)
     y_dim = (20, 1, 1, 16)
-    elm = x_dim[-2]*x_dim[-1]
+    elm = x_dim[-2] * x_dim[-1]
     # ADD MODULE CS TO TEST
     x = torch.randn(x_dim)
     y = torch.randn(y_dim)
@@ -243,5 +247,5 @@ if __name__ == "__main__":
     x_b, _ = cs.inverse(z, y)
     # print(x_b[0,0])
     print(torch.allclose(x, x_b, atol=1e-3, rtol=0))
-    print(cs.loss(x,y).mean())
+    print(cs.loss(x, y).mean())
     # print(cs)

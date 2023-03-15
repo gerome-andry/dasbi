@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from .observators.observator2D import *
 from tqdm import tqdm
-import seaborn as sns 
+import seaborn as sns
 
 import os
 
@@ -43,10 +43,18 @@ class LZ96(Simulator):
 
         return D
 
-    def display_sim(self, idx=0, obs=False, filename=None, delay=0.5, show=True, minMax = (None, None, None, None)):
+    def display_sim(
+        self,
+        idx=0,
+        obs=False,
+        filename=None,
+        delay=0.5,
+        show=True,
+        minMax=(None, None, None, None),
+    ):
         data = self.data[idx].T
-        col = sns.color_palette('coolwarm', as_cmap=True)
-        plt.imshow(data, cmap=col, interpolation="spline16", vmin = minMax[0], vmax = minMax[1])
+        col = sns.color_palette("coolwarm", as_cmap=True)
+        plt.imshow(data, cmap=col, vmin=minMax[0], vmax=minMax[1])
         plt.colorbar()
         plt.tight_layout()
 
@@ -60,7 +68,7 @@ class LZ96(Simulator):
 
             if obs:
                 data = self.obs[idx].T
-                plt.imshow(data, cmap=col, interpolation="spline16", vmin = minMax[2], vmax = minMax[3])
+                plt.imshow(data, cmap=col, vmin=minMax[2], vmax=minMax[3])
                 plt.colorbar()
                 plt.tight_layout()
                 plt.show(block=False)
@@ -79,7 +87,7 @@ class LZ96(Simulator):
 
         for i in range(observation.shape[0]):
             observation[i] += self.noise_amp * torch.randn_like(observation[i])
-        
+
         return observation
 
     def __str__(self):

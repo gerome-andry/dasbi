@@ -54,8 +54,6 @@ class ObservatorStation2D:
         # #
         # import matplotlib.pyplot as plt
 
-        
-
         # plt.imshow(gaussian_kernel)
         # plt.tight_layout()
         # plt.show()

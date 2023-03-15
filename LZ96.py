@@ -11,7 +11,7 @@ import pickle
 import random
 import seaborn
 import time
-import wandb    
+import wandb
 
 from dawgz import job, schedule
 from pathlib import Path
@@ -22,61 +22,65 @@ from zuko.distributions import DiagNormal
 from zuko.flows import Unconditional
 from dasbi.inference.models import ConvNPE as NPE
 from dasbi.networks.embedding import EmbedObs
-from dasbi.simulators.sim_lorenz96 import LZ96 as sim 
+from dasbi.simulators.sim_lorenz96 import LZ96 as sim
 
 
-SCRATCH = os.environ.get('SCRATCH', '.')
-PATH = Path(SCRATCH) / 'npe/lz96_small'
+SCRATCH = os.environ.get("SCRATCH", ".")
+PATH = Path(SCRATCH) / "npe/lz96_small"
 PATH.mkdir(parents=True, exist_ok=True)
 
 CONFIG = {
     # Architecture
-    'embedding': [3],
-    'kernel_size': [2],
-    'ms_modules': [1],
-    'num_conv' : [2],
-    'N_ms' : [2],
+    "embedding": [3],
+    "kernel_size": [2],
+    "ms_modules": [1],
+    "num_conv": [2],
+    "N_ms": [2],
     # Training
-    'epochs': [256],
-    'batch_size': [32],
-    'step_per_batch': [128],
-    'optimizer': ['AdamW'],
-    'learning_rate': [3e-3],#np.geomspace(1e-3, 1e-4).tolist(),
-    'weight_decay': [1e-4],#np.geomspace(1e-2, 1e-4).tolist(),
-    'scheduler': ['linear'],#, 'cosine', 'exponential'],
+    "epochs": [256],
+    "batch_size": [32],
+    "step_per_batch": [128],
+    "optimizer": ["AdamW"],
+    "learning_rate": [3e-3],  # np.geomspace(1e-3, 1e-4).tolist(),
+    "weight_decay": [1e-4],  # np.geomspace(1e-2, 1e-4).tolist(),
+    "scheduler": ["linear"],  # , 'cosine', 'exponential'],
     # Data
-    'points' : [32],
-    'noise' : [.5],
-    'train_sim' : [2],#2**10],
-    'val_sim' : [2],#2**8],
+    "points": [32],
+    "noise": [0.5],
+    "train_sim": [2],  # 2**10],
+    "val_sim": [2],  # 2**8],
     # Test with assimilation window
-    'x_dim' : [(1, 1, 32, 1)],
-    'y_dim' : [(1, 10, 6, 1)],
-    'y_dim_emb' : [(1, 11, 32, 1)],
-    'observer_fp' : ['experiments/observer32LZ.pickle']
+    "x_dim": [(1, 1, 32, 1)],
+    "y_dim": [(1, 10, 6, 1)],
+    "y_dim_emb": [(1, 11, 32, 1)],
+    "observer_fp": ["experiments/observer32LZ.pickle"],
 }
 
 
 def build(**config):
     mod_args = {
-        'x_dim' : torch.tensor(config['x_dim']),
-        'y_dim' : torch.tensor(config['y_dim_emb']),
-        'n_modules' : config['ms_modules'],
-        'n_c' : config['num_conv'],
-        'k_sz' : torch.tensor((config['kernel_size'],1)),
-        'type' : '1D'
+        "x_dim": torch.tensor(config["x_dim"]),
+        "y_dim": torch.tensor(config["y_dim_emb"]),
+        "n_modules": config["ms_modules"],
+        "n_c": config["num_conv"],
+        "k_sz": torch.tensor((config["kernel_size"], 1)),
+        "type": "1D",
     }
 
-    N = config['points']
+    N = config["points"]
     base = Unconditional(
-            DiagNormal,
-            torch.zeros(N),
-            torch.ones(N),
-            buffer=True,
-        )
-    
-    emb_net = EmbedObs(torch.tensor(config['y_dim']), torch.tensor(config['y_dim_emb']), conv_lay = config['embedding'])
-    return NPE(config['N_ms'], base, emb_net, mod_args)
+        DiagNormal,
+        torch.zeros(N),
+        torch.ones(N),
+        buffer=True,
+    )
+
+    emb_net = EmbedObs(
+        torch.tensor(config["y_dim"]),
+        torch.tensor(config["y_dim_emb"]),
+        conv_lay=config["embedding"],
+    )
+    return NPE(config["N_ms"], base, emb_net, mod_args)
 
 
 def process_sim(simulator):
@@ -89,26 +93,23 @@ def process_sim(simulator):
     MUT = simulator.time.mean(dim=(0, 1))
     SIGMAT = simulator.time.std(dim=(0, 1))
 
-    simulator.data = (simulator.data - MUX)/SIGMAX
-    simulator.obs = (simulator.obs - MUY)/SIGMAY
-    simulator.time = (simulator.time - MUT)/SIGMAT
+    simulator.data = (simulator.data - MUX) / SIGMAX
+    simulator.obs = (simulator.obs - MUY) / SIGMAY
+    simulator.time = (simulator.time - MUT) / SIGMAT
 
 
-@job(array=1, cpus=2, gpus=1, ram='32GB', time='20:00:00')
+@job(array=1, cpus=2, gpus=1, ram="32GB", time="20:00:00")
 def train(i: int):
-    config = {
-        key: random.choice(values)
-        for key, values in CONFIG.items()
-    }
+    config = {key: random.choice(values) for key, values in CONFIG.items()}
 
-    with open(config['observer_fp'], 'rb') as handle:
-        observer = pickle.load(handle) 
+    with open(config["observer_fp"], "rb") as handle:
+        observer = pickle.load(handle)
 
-    run = wandb.init(project='dasbi', config=config, group = 'LZ96_small_window_overfit')
-    runpath = PATH / f'runs/{run.name}_{run.id}'
+    run = wandb.init(project="dasbi", config=config, group="LZ96_small_window_overfit")
+    runpath = PATH / f"runs/{run.name}_{run.id}"
     runpath.mkdir(parents=True, exist_ok=True)
 
-    with open(runpath / 'config.json', 'w') as f:
+    with open(runpath / "config.json", "w") as f:
         json.dump(config, f)
 
     # Data
@@ -116,41 +117,41 @@ def train(i: int):
     traj_len = 1024
     times = torch.linspace(0, tmax, traj_len)
 
-    simt = sim(N = config['points'], noise = config['noise'])
+    simt = sim(N=config["points"], noise=config["noise"])
     simt.init_observer(observer)
     torch.manual_seed(42)
-    simt.generate_steps(torch.randn((config['train_sim'], config['points'])), times)
+    simt.generate_steps(torch.randn((config["train_sim"], config["points"])), times)
     process_sim(simt)
-    
-    simv = sim(N = config['points'], noise = config['noise'])
+
+    simv = sim(N=config["points"], noise=config["noise"])
     simv.init_observer(observer)
-    simv.generate_steps(torch.randn((config['val_sim'], config['points'])), times)
+    simv.generate_steps(torch.randn((config["val_sim"], config["points"])), times)
     process_sim(simv)
 
     # Network
     conv_npe = build(**config).cuda()
 
     # Training
-    epochs = config['epochs']
-    batch_size = config['batch_size']
-    step_per_batch = config['step_per_batch']
+    epochs = config["epochs"]
+    batch_size = config["batch_size"]
+    step_per_batch = config["step_per_batch"]
     best = 200
 
     ## Optimizer
-    if config['optimizer'] == 'AdamW':
+    if config["optimizer"] == "AdamW":
         optimizer = torch.optim.AdamW(
             conv_npe.parameters(),
-            lr=config['learning_rate'],
-            weight_decay=config['weight_decay'],
+            lr=config["learning_rate"],
+            weight_decay=config["weight_decay"],
         )
     else:
         raise ValueError()
 
-    if config['scheduler'] == 'linear':
+    if config["scheduler"] == "linear":
         lr = lambda t: 1 - (t / epochs)
-    elif config['scheduler'] == 'cosine':
+    elif config["scheduler"] == "cosine":
         lr = lambda t: (1 + math.cos(math.pi * t / epochs)) / 2
-    elif config['scheduler'] == 'exponential':
+    elif config["scheduler"] == "exponential":
         lr = lambda t: math.exp(-7 * (t / epochs) ** 2)
     else:
         raise ValueError()
@@ -166,23 +167,29 @@ def train(i: int):
         i = np.random.choice(
             len(simt.data),
             size=batch_size,
-            replace = True
-            #replace=False,
+            replace=True
+            # replace=False,
         )
 
         start = time.time()
 
-        for xb,yb,tb in zip(simt.data[i].cuda(), simt.obs[i].cuda(), simt.time[i].cuda()):
+        for xb, yb, tb in zip(
+            simt.data[i].cuda(), simt.obs[i].cuda(), simt.time[i].cuda()
+        ):
             subset_data = np.random.choice(
-                            np.arange(9, traj_len),
-                            #traj_len,
-                            size=step_per_batch,
-                            replace=False,
-                            )
-            
-            x,y,t = xb[subset_data], torch.cat([yb[i-9:i+1].unsqueeze(0) for i in subset_data], dim = 0), tb[subset_data]
-            x = x[:,None,...,None]
-            y = y[...,None]
+                np.arange(9, traj_len),
+                # traj_len,
+                size=step_per_batch,
+                replace=False,
+            )
+
+            x, y, t = (
+                xb[subset_data],
+                torch.cat([yb[i - 9 : i + 1].unsqueeze(0) for i in subset_data], dim=0),
+                tb[subset_data],
+            )
+            x = x[:, None, ..., None]
+            y = y[..., None]
 
             optimizer.zero_grad()
             l = conv_npe.loss(x, y, t)
@@ -190,29 +197,35 @@ def train(i: int):
             optimizer.step()
 
             losses_train.append(l.detach())
-            
+
         end = time.time()
 
         ### Valid
         i = np.random.choice(
             len(simv.data),
-            size=batch_size//4,
-            replace = True
-            #replace=False,
+            size=batch_size // 4,
+            replace=True
+            # replace=False,
         )
 
         with torch.no_grad():
-            for xb,yb,tb in zip(simv.data[i].cuda(), simv.obs[i].cuda(), simv.time[i].cuda()):
+            for xb, yb, tb in zip(
+                simv.data[i].cuda(), simv.obs[i].cuda(), simv.time[i].cuda()
+            ):
                 subset_data = np.random.choice(
-                            np.arange(9, traj_len),
-                            #traj_len,
-                            size=step_per_batch,
-                            replace=False,
-                            )
-                
-                x,y,t = xb[subset_data-1], torch.cat([yb[i-9:i+1].unsqueeze(0) for i in subset_data]), tb[subset_data]
-                x = x[:,None,...,None]
-                y = y[...,None]
+                    np.arange(9, traj_len),
+                    # traj_len,
+                    size=step_per_batch,
+                    replace=False,
+                )
+
+                x, y, t = (
+                    xb[subset_data - 1],
+                    torch.cat([yb[i - 9 : i + 1].unsqueeze(0) for i in subset_data]),
+                    tb[subset_data],
+                )
+                x = x[:, None, ..., None]
+                y = y[..., None]
 
                 losses_val.append(conv_npe.loss(x, y, t))
 
@@ -220,37 +233,38 @@ def train(i: int):
         loss_train = torch.stack(losses_train).mean().item()
         loss_val = torch.stack(losses_val).mean().item()
 
-        run.log({
-            'loss': loss_train,
-            'loss_val': loss_val,
-            'time_epoch': (end - start),
-            'lr': optimizer.param_groups[0]['lr'],
-        })
+        run.log(
+            {
+                "loss": loss_train,
+                "loss_val": loss_val,
+                "time_epoch": (end - start),
+                "lr": optimizer.param_groups[0]["lr"],
+            }
+        )
 
         ### Checkpoint
-
-        if loss_train < best * 0.95:
+        if loss_val < best * 0.95:
             best = loss_val
             torch.save(
                 conv_npe.state_dict(),
-                runpath / f'checkpoint_{epoch:04d}.pth',
+                runpath / f"checkpoint_{epoch:04d}.pth",
             )
 
         scheduler.step()
 
     # Load best checkpoint
-    checkpoints = sorted(runpath.glob('checkpoint_*.pth'))
+    checkpoints = sorted(runpath.glob("checkpoint_*.pth"))
     state = torch.load(checkpoints[-1])
 
     conv_npe.load_state_dict(state)
     conv_npe.eval()
 
     # Evaluation
-    sime = sim(N = config['points'], noise = config['noise'])
+    sime = sim(N=config["points"], noise=config["noise"])
     sime.init_observer(observer)
-    sime.generate_steps(torch.randn((1, config['points'])), times)
-    
-    x,y,t = sime.data[9], sime.obs[:10], sime.time[9]
+    sime.generate_steps(torch.randn((1, config["points"])), times)
+
+    x, y, t = sime.data[9], sime.obs[:10], sime.time[9]
 
     x = x[:, None, :, None]
     y = y[None, :, :, None]
@@ -260,7 +274,7 @@ def train(i: int):
     for yt, t in zip(y, t):
         samp = conv_npe.sample(yt.unsqueeze(0), t.unsqueeze(1), 3).cpu().numpy()
         traj.append(samp.unsqueeze(0))
-    traj = torch.cat(traj, dim = 0).squeeze()
+    traj = torch.cat(traj, dim=0).squeeze()
 
     fig, axs = plt.subplots(4, 1, figsize=(7, 7))
     figo, axso = plt.subplots(4, 1, figsize=(7, 7))
@@ -270,8 +284,8 @@ def train(i: int):
             ax.imshow(x.squeeze().cpu().numpy(), cmap=seaborn.cm.coolwarm)
             axo.imshow(y.squeeze().cpu().numpy(), cmap=seaborn.cm.coolwarm)
         else:
-            ax.imshow(traj[...,i], cmap=seaborn.cm.coolwarm)
-            o = sime.observe(traj[...,i])
+            ax.imshow(traj[..., i], cmap=seaborn.cm.coolwarm)
+            o = sime.observe(traj[..., i])
             axo.imshow(o, cmap=seaborn.cm.coolwarm)
 
         ax.label_outer()
@@ -280,19 +294,19 @@ def train(i: int):
     fig.tight_layout()
     figo.tight_layout()
 
-    run.log({'sample_traj': wandb.Image(fig)})
-    run.log({'sample_obs': wandb.Image(figo)})
+    run.log({"sample_traj": wandb.Image(fig)})
+    run.log({"sample_obs": wandb.Image(figo)})
     run.finish()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     schedule(
         train,
-        name='Hyperparameter search',
-        backend='slurm',
-        settings={'export': 'ALL'},
+        name="Hyperparameter search",
+        backend="slurm",
+        settings={"export": "ALL"},
         env=[
-            'conda activate DASBI',
-            'export WANDB_SILENT=true',
+            "conda activate DASBI",
+            "export WANDB_SILENT=true",
         ],
     )
