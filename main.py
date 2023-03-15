@@ -134,33 +134,33 @@ model.load_state_dict(state)
 model.eval()
 
 # EVALUATE CORNER PLOT
-# x,y,t = simulator.data[0, -1], simulator.obs[0, -10:], simulator.time[0, -1]
+x,y,t = simulator.data[0, -1], simulator.obs[0, -10:], simulator.time[0, -1]
 
-# x = x[None, None, :, None]
-# y = y[None, :, :, None]
-# t = t.unsqueeze(-1)
+x = x[None, None, :, None]
+y = y[None, :, :, None]
+t = t.unsqueeze(-1)
 
-# x_s = model.sample(y, t, 2**13, max_samp = 2**7).squeeze().detach()
+x_s = model.sample(y, t, 2**13, max_samp = 2**7).squeeze().detach()
 
 
-# # import lampe
-# from lampe.plots import corner, mark_point
+# import lampe
+from lampe.plots import corner, mark_point
 
-# fig = corner(x_s[:,::5], smooth=1, figsize=(6.8, 6.8), legend='p(x | y*)')
+fig = corner(x_s[:,::5], smooth=1, figsize=(6.8, 6.8), legend='p(x | y*)')
 
-# x_star = x.squeeze()[::5]
-# mark_point(fig, x_star)
+x_star = x.squeeze()[::5]
+mark_point(fig, x_star)
 
-# fig.savefig('cornerNPEtestSimAssimearly.pdf')
+fig.savefig('cornerNPEtestSimAssimbig.pdf')
 
-# y_s = simulator.observe(x_s)
-# fig = corner(y_s, smooth=1, figsize=(6.8, 6.8), legend='p(y | y*)')
+y_s = simulator.observe(x_s)
+fig = corner(y_s, smooth=1, figsize=(6.8, 6.8), legend='p(y | y*)')
 
-# y_star = y.squeeze()[-1]
-# mark_point(fig, y_star)
+y_star = y.squeeze()[-1]
+mark_point(fig, y_star)
 
-# fig.savefig('cornerNPEtestObsfAssimearly.pdf')
-# fig.clear()
+fig.savefig('cornerNPEtestObsfAssimbig.pdf')
+fig.clear()
 
 
 # EVALUATE TRAJECTORY
@@ -177,10 +177,10 @@ y_s = []
 # ASSIM :
 y = torch.cat([y[i : i + 10].unsqueeze(0) for i, _ in enumerate(y[:-10])], dim=0)
 print(y.shape)
-samp = model.sample(y, t, 16, max_samp=1).squeeze().detach()
+samp = model.sample(y, t, 1, max_samp=1).squeeze().detach()
 print(samp.shape)
-y_samp = simulator.observe(postprocess_x(samp)).mean((0))
-samp = samp.mean((0))
+y_samp = simulator.observe(postprocess_x(samp))#.mean((0))
+# samp = samp.mean((0))
 # x_s.append(samp.unsqueeze(0))
 # y_s.append(y_samp.unsqueeze(0))
 # for yt,tt in tqdm(zip(y, t)):
