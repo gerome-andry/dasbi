@@ -82,7 +82,6 @@ class MSConv(Transform):
 
     def forward(self, x, y):
         z = []
-        x_old = x.clone()
         ladj = x.new_zeros(x.shape[0])
         init_shape = x.shape
         for i, t in enumerate(self.transforms):
@@ -185,7 +184,6 @@ class ConvStep(Transform):
         z = x
         for m in self.mod:
             z, ladj_i = m(z)
-            # print(z)
             ladj += ladj_i
 
         c = z.shape[1]

@@ -138,9 +138,9 @@ class InvConv(Transform):
 
     def fc_from_conv(self, kern, x):
         xdim = x.shape[-2:]
-        K = torch.ones(xdim)
+        K = x.new_ones(xdim)
         K = self.triang_pad(K)
-        c_mat = torch.zeros((x[0, ...].numel(),) * 2)
+        c_mat = x.new_zeros((x[0, ...].numel(),) * 2)
 
         row = 0
         for i in range(K.shape[0] - kern.shape[0] + 1):
@@ -198,20 +198,20 @@ class SpatialSplit(Transform):
 
         new_c = c // 4
         if self.type == "2D":  # 2D data
-            x = torch.zeros((b, c // 4, 2 * h, 2 * w))
+            x = z.new_zeros((b, c // 4, 2 * h, 2 * w))
             x[..., ::2, ::2] = z[:, :new_c, ...]
             x[..., ::2, 1::2] = z[:, new_c : 2 * new_c, ...]
             x[..., 1::2, ::2] = z[:, 2 * new_c : 3 * new_c, ...]
             x[..., 1::2, 1::2] = z[:, 3 * new_c : c, ...]
         else:
             if self.type == "1DH":
-                x = torch.zeros((b, c // 4, h, 4 * w))
+                x = z.new_zeros((b, c // 4, h, 4 * w))
                 x[..., ::4] = z[:, :new_c, ...]
                 x[..., 1::4] = z[:, new_c : 2 * new_c, ...]
                 x[..., 2::4] = z[:, 2 * new_c : 3 * new_c, ...]
                 x[..., 3::4] = z[:, 3 * new_c : c, ...]
             else:
-                x = torch.zeros((b, c // 4, 4 * h, w))
+                x = z.new_zeros((b, c // 4, 4 * h, w))
                 x[..., ::4, :] = z[:, :new_c, ...]
                 x[..., 1::4, :] = z[:, new_c : 2 * new_c, ...]
                 x[..., 2::4, :] = z[:, 2 * new_c : 3 * new_c, ...]
@@ -271,7 +271,6 @@ class QuadCoupling(Transform):
         assert c % 4 == 0, "Must contain 4n channels"
         chan_coup = c // 4
 
-        # print(context.shape)
         x = z[:, :chan_coup, ...]
         it = 1
         for ac in self.coupling_nets:

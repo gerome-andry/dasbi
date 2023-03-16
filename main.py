@@ -70,12 +70,15 @@ def preprocess_t(t):
 def postprocess_t(t):
     return t * SIGMAT + MUT
 
-
+start = 256
+finish = 512
+window = 10
 # TRAIN A MODEL
-simulator.data = simulator.data[:, 9 : 512 + 9]
-simulator.obs = simulator.obs[:, : 512 + 10]
-simulator.time = simulator.time[:, 9 : 512 + 9]
-simulator.display_sim(obs=True, filename="hovGT")
+simulator.data = simulator.data[:, start : finish]
+simulator.obs = simulator.obs[:, start - window + 1: finish]
+simulator.time = simulator.time[:, start : finish]
+
+simulator.display_sim(obs=True, filename="experiments/bigObsSmallLZ/hovGT")
 simulator.data = preprocess_x(simulator.data)
 simulator.obs = preprocess_y(simulator.obs)
 simulator.time = preprocess_t(simulator.time)
@@ -113,53 +116,63 @@ config = {
     "observer_fp": "experiments/observer32LZ.pickle",
 }
 
-model = build(**config)
+device = "cuda"
+model = build(**config).to(device)
 
 with torch.no_grad():
     model(
-        simulator.data[None, None, 0, 0, :, None],
-        simulator.obs[None, :10, 0, :, None],
-        simulator.time[0, 0, None],
+        simulator.data[None, None, 0, 0, :, None].to(device),
+        simulator.obs[None, :10, 0, :, None].to(device),
+        simulator.time[0, 0, None].to(device),
     )
 
-state = torch.load("LZsmallAssimBigobs.pth", map_location=torch.device("cpu"))
+state = torch.load("LZsmallAssimBigobs.pth", map_location=torch.device(device))
 
 # 1 STEP :
 # with torch.no_grad():
-#     model(simulator.data[None,None, 0, 0, :, None], simulator.obs[None, None, 0, 0, :, None], simulator.time[0, 0, None])
+#     model(
+#         simulator.data[None, None, 0, 0, :, None].to(device),
+#         simulator.obs[None, None, 0, 0, :, None].to(device),
+#         simulator.time[0, 0, None].to(device),
+#     )
 
-# state = torch.load('LZsmall1stepearly.pth', map_location = torch.device('cpu'))
+# state = torch.load("LZsmall1stepearly.pth", map_location=torch.device(device))
 
 model.load_state_dict(state)
 model.eval()
 
 # EVALUATE CORNER PLOT
-x,y,t = simulator.data[0, -1], simulator.obs[0, -10:], simulator.time[0, -1]
+x, y, t = simulator.data[0, -1], simulator.obs[0, -window:], simulator.time[0, -1]
 
 x = x[None, None, :, None]
 y = y[None, :, :, None]
 t = t.unsqueeze(-1)
 
-x_s = model.sample(y, t, 2**13, max_samp = 2**7).squeeze().detach()
+x_s = (
+    model.sample(y.to(device), t.to(device), 2**13, max_samp=2**7)
+    .squeeze()
+    .detach()
+    .cpu()
+)
 
 
 # import lampe
 from lampe.plots import corner, mark_point
 
-fig = corner(x_s[:,::5], smooth=1, figsize=(6.8, 6.8), legend='p(x | y*)')
+fig = corner(x_s[:, ::5], smooth=1, figsize=(6.8, 6.8), legend="p(x | y*)")
 
 x_star = x.squeeze()[::5]
 mark_point(fig, x_star)
 
-fig.savefig('cornerNPEtestSimAssimbig.pdf')
+fig.savefig("experiments/bigObsSmallLZ/cornerNPESim.pdf")
 
 y_s = simulator.observe(x_s)
-fig = corner(y_s, smooth=1, figsize=(6.8, 6.8), legend='p(y | y*)')
+fig = corner(y_s[:,::2], smooth=1, figsize=(6.8, 6.8), legend="p(y | y*)")
 
 y_star = y.squeeze()[-1]
 mark_point(fig, y_star)
 
-fig.savefig('cornerNPEtestObsfAssimbig.pdf')
+fig.savefig("experiments/bigObsSmallLZ/cornerNPEObs.pdf")
 fig.clear()
 
 
@@ -167,7 +180,6 @@ fig.clear()
 
 xgt, ygt, tgt = simulator.data[0], simulator.obs[0], simulator.time[0]
 
-# x = x[:, None, :, None]
 y = ygt[..., None]
 t = tgt.unsqueeze(1)
 
@@ -175,30 +187,19 @@ x_s = []
 y_s = []
 
 # ASSIM :
-y = torch.cat([y[i : i + 10].unsqueeze(0) for i, _ in enumerate(y[:-10])], dim=0)
-print(y.shape)
-samp = model.sample(y, t, 1, max_samp=1).squeeze().detach()
-print(samp.shape)
-y_samp = simulator.observe(postprocess_x(samp))#.mean((0))
-# samp = samp.mean((0))
-# x_s.append(samp.unsqueeze(0))
-# y_s.append(y_samp.unsqueeze(0))
-# for yt,tt in tqdm(zip(y, t)):
-#     samp = model.sample(yt.unsqueeze(0), tt.unsqueeze(0), 64).squeeze().detach()
-#     y_samp = simulator.observe(postprocess_x(samp)).mean((0))
-#     samp = samp.mean((0))
-#     x_s.append(samp.unsqueeze(0))
-#     y_s.append(y_samp.unsqueeze(0))
+y = torch.cat([y[i : i + window].unsqueeze(0) for i, _ in enumerate(y[:-window+1])], dim=0)
+samp = model.sample(y.to(device), t.to(device), 16, max_samp=1).squeeze().detach().cpu()
 
-# x_s = torch.cat(x_s, dim = 0)
+y_samp = simulator.observe(postprocess_x(samp)).mean((0))
+samp = samp.mean((0))
+
 simulator.data = postprocess_x(samp[None, ...])
-# y_s = torch.cat(y_s, dim = 0)
 simulator.obs = y_samp[None, ...]
 
 xgt = postprocess_x(xgt)
 ygt = postprocess_y(ygt)
 simulator.display_sim(
     obs=True,
-    filename="hovSAMPAssimBig",
+    filename="experiments/bigObsSmallLZ/hovSAMP",
     minMax=(xgt.min(), xgt.max(), ygt.min(), ygt.max()),
 )
