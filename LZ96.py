@@ -47,12 +47,13 @@ CONFIG = {
     # Data
     "points": [32],
     "noise": [0.5],
-    "train_sim": [2],  # 2**10],
-    "val_sim": [2],  # 2**8],
+    "train_sim": [2**10],
+    "val_sim": [2**8],
     # Test with assimilation window
     "x_dim": [(1, 1, 32, 1)],
     "y_dim": [(1, 10, 6, 1)],
-    "y_dim_emb": [(1, 11, 32, 1)],
+    "y_dim_emb": [(1, 12, 32, 1)],
+    'obs_mask': [True],
     "observer_fp": ["experiments/observer32LZ.pickle"],
 }
 
@@ -75,10 +76,17 @@ def build(**config):
         buffer=True,
     )
 
+    mask = None
+    if config['obs_mask']:
+        with open(config["observer_fp"], "rb") as handle:
+            observer = pickle.load(handle)
+        mask = observer.get_mask()
+
     emb_net = EmbedObs(
         torch.tensor(config["y_dim"]),
         torch.tensor(config["y_dim_emb"]),
         conv_lay=config["embedding"],
+        observer_mask=mask
     )
     return NPE(config["N_ms"], base, emb_net, mod_args)
 
@@ -105,7 +113,7 @@ def train(i: int):
     with open(config["observer_fp"], "rb") as handle:
         observer = pickle.load(handle)
 
-    run = wandb.init(project="dasbi", config=config, group="LZ96_small_window_overfit")
+    run = wandb.init(project="dasbi", config=config, group="LZ96_small_window_masked")
     runpath = PATH / f"runs/{run.name}_{run.id}"
     runpath.mkdir(parents=True, exist_ok=True)
 
@@ -119,7 +127,6 @@ def train(i: int):
 
     simt = sim(N=config["points"], noise=config["noise"])
     simt.init_observer(observer)
-    torch.manual_seed(42)
     simt.generate_steps(torch.randn((config["train_sim"], config["points"])), times)
     process_sim(simt)
 

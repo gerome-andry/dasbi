@@ -27,16 +27,43 @@ class ObservatorStation2D:
         y_pos = torch.randint(low=0, high=self.k_sz[1], size=(len(xl), len(yu))) + yu
         y_pos = torch.clamp(y_pos, min=0, max=self.dims[1] - 1)
 
-        # import matplotlib.pyplot as plt
-
-        # stat_map = torch.zeros(self.dims)
-        # stat_map[x_pos, y_pos] = 1
-        # plt.imshow(stat_map)
-        # plt.show()
-
-        # FIX VISUALIZE METHOD TO WRAP THAT !!!
-
         self.station = x_pos, y_pos
+
+    def get_mask(self):
+        stat_map = torch.zeros(self.dims)
+        stat_map[self.station[0], self.station[1]] = 1
+
+        return stat_map
+    
+    def visualize(self):
+        import matplotlib.pyplot as plt
+
+        # STATION
+        stat_map = torch.zeros(self.dims)
+        stat_map[self.station[0], self.station[1]] = 1
+        plt.figure(figsize = (6.8,6.8))
+        plt.imshow(stat_map, aspect = 'auto')
+        plt.show()
+        plt.close()
+
+        # KERNEL
+        eval_grid = torch.meshgrid(
+            torch.arange(-self.aoe[0], self.aoe[0] + 1),
+            torch.arange(-self.aoe[1], self.aoe[1] + 1),
+            indexing="xy",
+        )
+        eval_grid = torch.cat([X.unsqueeze(-1) for X in eval_grid], dim=-1)
+
+        gaussian_kernel = self.gaussian_2D(
+            torch.zeros(2), torch.tensor(self.spf), eval_grid
+        )
+        gaussian_kernel = (gaussian_kernel / torch.max(gaussian_kernel)).T
+        plt.figure(figsize = (6.8,6.8))
+        plt.imshow(gaussian_kernel, aspect = 'auto')
+        plt.tight_layout()
+        plt.show()
+        plt.close()
+        plt.clf()
 
     def observe(self, data):
         eval_grid = torch.meshgrid(
@@ -51,14 +78,6 @@ class ObservatorStation2D:
         )
         gaussian_kernel = (gaussian_kernel / torch.max(gaussian_kernel)).T
 
-        # #
-        # import matplotlib.pyplot as plt
-
-        # plt.imshow(gaussian_kernel)
-        # plt.tight_layout()
-        # plt.show()
-        # plt.close()
-        # #
         x_l = torch.clamp(self.station[0] - self.aoe[0], min=0)
         x_r = torch.clamp(self.station[0] + self.aoe[0] + 1, max=self.dims[0])
 

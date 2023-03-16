@@ -20,20 +20,22 @@ n_sim = 2**10
 N = 32
 
 simulator = sim(N=N, noise=0.5)
-observer = ObservatorStation2D((N, 1), (4, 1), (2, 1), (4, 1), (2, 1))
-with open("experiments/observer32moreLZ.pickle", "rb") as handle:
+# observer = ObservatorStation2D((N, 1), (4, 1), (2, 1), (4, 1), (2, 1))
+with open("experiments/observer32LZ.pickle", "rb") as handle:
     observer = pickle.load(handle)
 simulator.init_observer(observer)
 
-# with open('experiments/observer32moreLZ.pickle', 'wb') as handle:
+# with open('experiments/observer32LZ.pickle', 'wb') as handle:
 #     pickle.dump(observer, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
+observer.visualize()
+print(observer.get_mask().shape)
+exit()
 tmax = 10
 traj_len = 1024
 times = torch.linspace(0, tmax, traj_len)
 
 simulator.generate_steps(torch.randn((n_sim, N)), times)
-print(simulator.obs.shape)
+# print(simulator.obs.shape)
 
 MUX = simulator.data.mean(dim=(0, 1))
 SIGMAX = simulator.data.std(dim=(0, 1))
@@ -42,6 +44,7 @@ SIGMAX = simulator.data.std(dim=(0, 1))
 def preprocess_x(x):
     return (x - MUX) / SIGMAX
 
+print(MUX, SIGMAX)
 
 def postprocess_x(x):
     return x * SIGMAX + MUX
@@ -50,7 +53,7 @@ def postprocess_x(x):
 MUY = simulator.obs.mean(dim=(0, 1))
 SIGMAY = simulator.obs.std(dim=(0, 1))
 
-
+print(MUY, SIGMAY)
 def preprocess_y(y):
     return (y - MUY) / SIGMAY
 
@@ -78,7 +81,7 @@ simulator.data = simulator.data[:, start : finish]
 simulator.obs = simulator.obs[:, start - window + 1: finish]
 simulator.time = simulator.time[:, start : finish]
 
-simulator.display_sim(obs=True, filename="experiments/bigObsSmallLZ/hovGT")
+simulator.display_sim(obs=True, filename="experiments/AssimSmallLZ/hovGT")
 simulator.data = preprocess_x(simulator.data)
 simulator.obs = preprocess_y(simulator.obs)
 simulator.time = preprocess_t(simulator.time)
@@ -111,7 +114,7 @@ config = {
     "val_sim": 2**8,
     # Test with assimilation window
     "x_dim": (1, 1, 32, 1),
-    "y_dim": (1, 10, 11, 1),
+    "y_dim": (1, 10, 6, 1),
     "y_dim_emb": (1, 11, 32, 1),
     "observer_fp": "experiments/observer32LZ.pickle",
 }
@@ -126,7 +129,7 @@ with torch.no_grad():
         simulator.time[0, 0, None].to(device),
     )
 
-state = torch.load("LZsmallAssimBigobs.pth", map_location=torch.device(device))
+state = torch.load("LZsmall10assim.pth", map_location=torch.device(device))
 
 # 1 STEP :
 # with torch.no_grad():
@@ -142,14 +145,14 @@ model.load_state_dict(state)
 model.eval()
 
 # EVALUATE CORNER PLOT
-x, y, t = simulator.data[0, -1], simulator.obs[0, -window:], simulator.time[0, -1]
+x, y, t = simulator.data[0, window-1], simulator.obs[0, :window], simulator.time[0, window-1]
 
 x = x[None, None, :, None]
 y = y[None, :, :, None]
 t = t.unsqueeze(-1)
 
 x_s = (
-    model.sample(y.to(device), t.to(device), 2**13, max_samp=2**7)
+    model.sample(y.to(device), t.to(device), 1, max_samp=2**8)
     .squeeze()
     .detach()
     .cpu()
@@ -159,23 +162,23 @@ x_s = (
 # import lampe
 from lampe.plots import corner, mark_point
 
-fig = corner(x_s[:, ::5], smooth=1, figsize=(6.8, 6.8), legend="p(x | y*)")
+fig = corner(x_s[:, ::5], smooth=2, figsize=(6.8, 6.8), legend="p(x | y*)")
 
 x_star = x.squeeze()[::5]
 mark_point(fig, x_star)
 
-fig.savefig("experiments/bigObsSmallLZ/cornerNPESim.pdf")
+fig.savefig("experiments/AssimSmallLZ/cornerNPESim.pdf")
 
 y_s = simulator.observe(x_s)
-fig = corner(y_s[:,::2], smooth=1, figsize=(6.8, 6.8), legend="p(y | y*)")
+fig = corner(y_s, smooth=2, figsize=(6.8, 6.8), legend="p(y | y*)")
 
 y_star = y.squeeze()[-1]
 mark_point(fig, y_star)
 
-fig.savefig("experiments/bigObsSmallLZ/cornerNPEObs.pdf")
+fig.savefig("experiments/AssimSmallLZ/cornerNPEObs.pdf")
 fig.clear()
 
-
+exit()
 # EVALUATE TRAJECTORY
 
 xgt, ygt, tgt = simulator.data[0], simulator.obs[0], simulator.time[0]
@@ -191,7 +194,7 @@ y = torch.cat([y[i : i + window].unsqueeze(0) for i, _ in enumerate(y[:-window+1
 samp = model.sample(y.to(device), t.to(device), 16, max_samp=1).squeeze().detach().cpu()
 
 y_samp = simulator.observe(postprocess_x(samp)).mean((0))
-samp = samp.mean((0))
+samp = samp[0]#.mean((0))
 
 simulator.data = postprocess_x(samp[None, ...])
 simulator.obs = y_samp[None, ...]
@@ -200,6 +203,6 @@ xgt = postprocess_x(xgt)
 ygt = postprocess_y(ygt)
 simulator.display_sim(
     obs=True,
-    filename="experiments/bigObsSmallLZ/hovSAMP",
+    filename="experiments/AssimSmallLZ/hovSAMP",
     minMax=(xgt.min(), xgt.max(), ygt.min(), ygt.max()),
 )

@@ -3,11 +3,12 @@ import torch.nn as nn
 
 
 class EmbedObs(nn.Module):
-    def __init__(self, in_shape, out_shape, conv_lay=2):
+    def __init__(self, in_shape, out_shape, conv_lay=2, observer_mask = None):
         super().__init__()
         self.x_shape = tuple(out_shape)
         self.y_shape = tuple(in_shape)
         h, w = out_shape[-2:]
+        self.obs = observer_mask
         self.register_buffer(
             "freq",
             torch.cat([torch.arange(i, i + h // 2) for i in range(1, w + 1)])
@@ -29,7 +30,7 @@ class EmbedObs(nn.Module):
                 self.x_shape[-1] - self.y_shape[-1] + 1,
             ),
         )
-        self.head = nn.Conv2d(32, self.x_shape[1] - 1, 1)
+        self.head = nn.Conv2d(32, self.x_shape[1] - 1 if self.obs == None else self.x_shape[1] - 2, 1)
 
     def time_embed(self, t):
         # extend to multiple times
@@ -56,12 +57,17 @@ class EmbedObs(nn.Module):
 
         y_emb = self.head(self.upsample(y_emb))
 
-        return torch.cat((y_emb, t_emb), dim=1)
+        if self.obs is not None:
+            emb_cat = (y_emb, t_emb, self.obs[None,None,...].expand(y_emb.shape[0], -1, -1, -1))
+        else:
+            emb_cat = (y_emb, t_emb)
+        
+        return torch.cat(emb_cat, dim=1)
 
 
 if __name__ == "__main__":
     import os
 
     os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
-    eo = EmbedObs((1, 1, 3, 3), (1, 1, 16, 16))
-    eo.time_embed(torch.linspace(0, 1, 16**2))
+    eo = EmbedObs((1, 1, 3, 3), (1, 3, 4, 4), observer_mask=torch.randint(2, (4,4)))
+    print(eo(torch.zeros((2,1,3,3)), torch.ones(2)))

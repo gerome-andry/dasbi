@@ -2,7 +2,7 @@ from ..networks.nfmodules import MSConv
 import torch
 import torch.nn as nn
 import numpy as np
-
+from tqdm import trange
 
 class ConvNSE(nn.Module):
     pass
@@ -38,7 +38,8 @@ class ConvNPE(nn.Module):
         y_dim = y.shape
         t_dim = t.shape
         x_s = []
-        while n > 0:
+        n_iter = int(np.ceil(n/max_samp))
+        for _ in trange(n_iter):
             ns = int(np.minimum(n, max_samp if max_samp is not None else np.inf))
             y_t = y.unsqueeze(0).expand(ns, -1, -1, -1, -1).reshape((-1,) + y_dim[1:])
             t_t = t.unsqueeze(0).expand(ns, -1, -1).reshape((-1,) + t_dim[1:])
