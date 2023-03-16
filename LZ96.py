@@ -49,7 +49,7 @@ CONFIG = {
     "noise": [0.5],
     "train_sim": [2**10],
     "val_sim": [2**8],
-    "device": ['cuda']
+    "device": ['cuda'],
     # Test with assimilation window
     "x_dim": [(1, 1, 32, 1)],
     "y_dim": [(1, 10, 6, 1)],
