@@ -20,16 +20,15 @@ n_sim = 2**10
 N = 32
 
 simulator = sim(N=N, noise=0.5)
-# observer = ObservatorStation2D((N, 1), (4, 1), (2, 1), (4, 1), (2, 1))
-with open("experiments/observer32LZ.pickle", "rb") as handle:
-    observer = pickle.load(handle)
-simulator.init_observer(observer)
+observer = ObservatorStation2D((N, 1), (4, 1), (2, 1), (4, 0), (.75, 1))
+# with open("experiments/observer32LZ.pickle", "rb") as handle:
+#     observer = pickle.load(handle)
+# simulator.init_observer(observer)
 
-# with open('experiments/observer32LZ.pickle', 'wb') as handle:
+# with open('experiments/observer32narrowLZ.pickle', 'wb') as handle:
 #     pickle.dump(observer, handle, protocol=pickle.HIGHEST_PROTOCOL)
-observer.visualize()
-print(observer.get_mask().shape)
-exit()
+# observer.visualize()
+
 tmax = 10
 traj_len = 1024
 times = torch.linspace(0, tmax, traj_len)
@@ -44,8 +43,6 @@ SIGMAX = simulator.data.std(dim=(0, 1))
 def preprocess_x(x):
     return (x - MUX) / SIGMAX
 
-print(MUX, SIGMAX)
-
 def postprocess_x(x):
     return x * SIGMAX + MUX
 
@@ -53,7 +50,6 @@ def postprocess_x(x):
 MUY = simulator.obs.mean(dim=(0, 1))
 SIGMAY = simulator.obs.std(dim=(0, 1))
 
-print(MUY, SIGMAY)
 def preprocess_y(y):
     return (y - MUY) / SIGMAY
 
@@ -112,10 +108,12 @@ config = {
     "noise": 0.5,
     "train_sim": 2**10,
     "val_sim": 2**8,
+    "device": 'cuda',
     # Test with assimilation window
     "x_dim": (1, 1, 32, 1),
     "y_dim": (1, 10, 6, 1),
     "y_dim_emb": (1, 11, 32, 1),
+    'obs_mask': True,
     "observer_fp": "experiments/observer32LZ.pickle",
 }
 
@@ -130,7 +128,9 @@ with torch.no_grad():
     )
 
 state = torch.load("LZsmall10assim.pth", map_location=torch.device(device))
-
+size = sum(param.numel() for param in model.parameters()) 
+print(size)
+exit()
 # 1 STEP :
 # with torch.no_grad():
 #     model(
