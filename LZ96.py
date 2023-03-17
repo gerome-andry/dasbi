@@ -46,7 +46,7 @@ CONFIG = {
     "scheduler": ["linear"],  # , 'cosine', 'exponential'],
     # Data
     "points": [32],
-    "noise": [0.5],
+    "noise": [0.1],
     "train_sim": [2**10],
     "val_sim": [2**8],
     "device": ['cuda'],
