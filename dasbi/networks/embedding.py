@@ -67,7 +67,7 @@ class EmbedObs(nn.Module):
         else:
             mask = self.obs[None,None,...].expand(y.shape[0], -1, -1, -1)
             y_emb = torch.zeros_like(mask)
-            y_emb[mask.repeat(-1, y.shape[1], -1, -1) == 1] = y
+            y_emb[mask.expand(-1, y.shape[1], -1, -1) == 1] = y
             y_emb = torch.cat((y_emb, mask), dim = 1) 
             for e in self.extract:
                 y_emb = e(y_emb)
