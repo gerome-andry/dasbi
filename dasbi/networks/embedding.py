@@ -15,22 +15,28 @@ class EmbedObs(nn.Module):
             * torch.pi,
         )
 
-        # assumption obs have smaller size than x
         self.extract = nn.ModuleList(
             [
                 nn.Conv2d(self.y_shape[1] if i == 0 else 4 * i, 4 * (i + 1), 1)
                 for i in range(conv_lay)
             ]
         )
-        self.upsample = nn.ConvTranspose2d(
-            4 * conv_lay,
-            32,
-            (
-                self.x_shape[-2] - self.y_shape[-2] + 1,
-                self.x_shape[-1] - self.y_shape[-1] + 1,
-            ),
-        )
-        self.head = nn.Conv2d(32, self.x_shape[1] - 1 if self.obs == None else self.x_shape[1] - 2, 1)
+
+
+        # assumption obs have smaller size than x
+        if self.obs is None:
+            self.upsample = nn.ConvTranspose2d(
+                4 * conv_lay,
+                32,
+                (
+                    self.x_shape[-2] - self.y_shape[-2] + 1,
+                    self.x_shape[-1] - self.y_shape[-1] + 1,
+                ),
+            )
+        else:
+            self.recombine = nn.Conv2d(4*conv_lay, 32, 1)
+
+        self.head = nn.Conv2d(32, self.x_shape[1] - 1, 1)
 
     def time_embed(self, t):
         # extend to multiple times
@@ -50,19 +56,27 @@ class EmbedObs(nn.Module):
 
     def forward(self, y, t):
         t_emb = self.time_embed(t)
-        y_emb = y
 
-        for e in self.extract:
-            y_emb = e(y_emb)
+        if self.obs is None:
+            y_emb = y
+            for e in self.extract:
+                y_emb = e(y_emb)
 
-        y_emb = self.head(self.upsample(y_emb))
+            y_emb = self.upsample(y_emb)
 
-        if self.obs is not None:
-            emb_cat = (y_emb, t_emb, self.obs[None,None,...].expand(y_emb.shape[0], -1, -1, -1))
         else:
-            emb_cat = (y_emb, t_emb)
-        
-        return torch.cat(emb_cat, dim=1)
+            mask = self.obs[None,None,...].expand(y.shape[0], -1, -1, -1)
+            y_emb = mask
+            y_emb[y_emb == 1] = y
+            y_emb = torch.cat((y_emb, mask), dim = 1) 
+            for e in self.extract:
+                y_emb = e(y_emb)
+
+            y_emb = self.recombine(y_emb)
+
+        y_emb = self.head(y_emb)
+
+        return torch.cat((y_emb, t_emb), dim=1)
 
 
 if __name__ == "__main__":

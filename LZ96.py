@@ -52,10 +52,10 @@ CONFIG = {
     "device": ['cuda'],
     # Test with assimilation window
     "x_dim": [(1, 1, 32, 1)],
-    "y_dim": [(1, 10, 6, 1)],
+    "y_dim": [(1, 11, 32, 1)],
     "y_dim_emb": [(1, 12, 32, 1)],
     'obs_mask': [True],
-    "observer_fp": ["experiments/observer32narrowLZ.pickle"],
+    "observer_fp": ["experiments/observer32LZ.pickle"],
 }
 
 

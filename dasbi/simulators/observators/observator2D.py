@@ -41,7 +41,6 @@ class ObservatorStation2D:
         # STATION
         stat_map = torch.zeros(self.dims)
         stat_map[self.station[0], self.station[1]] = 1
-        plt.figure(figsize = (6.8,6.8))
         plt.imshow(stat_map, aspect = 'auto')
         plt.show()
         plt.close()
@@ -58,14 +57,20 @@ class ObservatorStation2D:
             torch.zeros(2), torch.tensor(self.spf), eval_grid
         )
         gaussian_kernel = (gaussian_kernel / torch.max(gaussian_kernel)).T
-        plt.figure(figsize = (6.8,6.8))
         plt.imshow(gaussian_kernel, aspect = 'auto')
+        plt.colorbar()
         plt.tight_layout()
         plt.show()
         plt.close()
         plt.clf()
 
-    def observe(self, data):
+        importance = self.observe(None, True)
+        plt.imshow(importance[:, :], aspect = 'auto')
+        plt.colorbar()
+        plt.tight_layout()
+        plt.show()
+
+    def observe(self, data, get_imp = False):
         eval_grid = torch.meshgrid(
             torch.arange(-self.aoe[0], self.aoe[0] + 1),
             torch.arange(-self.aoe[1], self.aoe[1] + 1),
@@ -84,53 +89,51 @@ class ObservatorStation2D:
         y_d = torch.clamp(self.station[1] - self.aoe[1], min=0)
         y_u = torch.clamp(self.station[1] + self.aoe[1] + 1, max=self.dims[1])
 
-        obs = torch.zeros(
+        #
+        if get_imp:
+            importance = torch.zeros(self.dims)
+        #
+        else:
+            obs = torch.zeros(
             torch.Size(
                 torch.cat(
                     (torch.tensor(data.shape[:-2]), torch.tensor(self.station[0].shape))
+                    )
                 )
             )
-        )
-        # #
-        # importance = torch.zeros_like(data)
-        # #
         for x, row in enumerate(x_l):
             for y, _ in enumerate(row):
-                # #
-                # importance[
-                #     ..., x_l[x, y] : x_r[x, y], y_d[x, y] : y_u[x, y]
-                # ] += gaussian_kernel[
-                #     self.aoe[0]
-                #     - (self.station[0][x, y] - x_l[x, y]) : self.aoe[0]
-                #     + (x_r[x, y] - self.station[0][x, y]),
-                #     self.aoe[1]
-                #     - (self.station[1][x, y] - y_d[x, y]) : self.aoe[1]
-                #     + (y_u[x, y] - self.station[1][x, y]),
-                # ]
-                # #
-                obs[..., x, y] = torch.tensordot(
-                    data[..., x_l[x, y] : x_r[x, y], y_d[x, y] : y_u[x, y]],
-                    gaussian_kernel[
+                #
+                if get_imp:
+                    importance[
+                        ..., x_l[x, y] : x_r[x, y], y_d[x, y] : y_u[x, y]
+                    ] += gaussian_kernel[
                         self.aoe[0]
                         - (self.station[0][x, y] - x_l[x, y]) : self.aoe[0]
                         + (x_r[x, y] - self.station[0][x, y]),
                         self.aoe[1]
                         - (self.station[1][x, y] - y_d[x, y]) : self.aoe[1]
                         + (y_u[x, y] - self.station[1][x, y]),
-                    ],
-                )
+                    ]
+                #
+                else:
+                    obs[..., x, y] = torch.tensordot(
+                        data[..., x_l[x, y] : x_r[x, y], y_d[x, y] : y_u[x, y]],
+                        gaussian_kernel[
+                            self.aoe[0]
+                            - (self.station[0][x, y] - x_l[x, y]) : self.aoe[0]
+                            + (x_r[x, y] - self.station[0][x, y]),
+                            self.aoe[1]
+                            - (self.station[1][x, y] - y_d[x, y]) : self.aoe[1]
+                            + (y_u[x, y] - self.station[1][x, y]),
+                        ],
+                    )
 
-        # fig = plt.figure()
-        # ax = plt.axes(projection="3d")
-        # if len(importance.shape) == 3:
-        #     plt.imshow(importance[0, :, :].T)
-        # else:
-        #     plt.imshow(importance[0, :, :, 0].T)
-        # plt.colorbar()
-        # plt.tight_layout()
-        # plt.show()
+        if get_imp:
+            return importance
+        else:
+            return obs
 
-        return obs
 
     def gaussian_2D(self, mean, std, pts):
         return (1 / (2 * torch.pi * torch.prod(std))) * torch.exp(

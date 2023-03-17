@@ -54,9 +54,8 @@ class LZ96(Simulator):
     ):
         data = self.data[idx].T
         col = sns.color_palette("coolwarm", as_cmap=True)
-        plt.figure(figsize = (6.8,6.8))
-        plt.imshow(data, cmap=col, vmin=minMax[0], vmax=minMax[1], aspect = 'auto')
-        plt.colorbar()
+        plt.figure(figsize = (8,7))
+        plt.imshow(data, cmap=col, vmin=minMax[0], vmax=minMax[1], aspect = 'auto', interpolation='none')
         plt.tight_layout()
 
         if show:
@@ -65,13 +64,12 @@ class LZ96(Simulator):
             if filename is not None:
                 plt.savefig(filename + ".pdf")
 
-            plt.clf()
+            plt.close()
 
             if obs:
                 data = self.obs[idx].T
-                plt.figure(figsize = (6.8,6.8))
-                plt.imshow(data, cmap=col, vmin=minMax[2], vmax=minMax[3], aspect = 'auto')
-                plt.colorbar()
+                plt.figure(figsize = (8,7))
+                plt.imshow(data, cmap=col, vmin=minMax[2], vmax=minMax[3], aspect = 'auto', interpolation='none')
                 plt.tight_layout()
                 plt.show(block=False)
                 plt.pause(delay)
