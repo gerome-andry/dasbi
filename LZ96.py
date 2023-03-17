@@ -55,7 +55,7 @@ CONFIG = {
     "y_dim": [(1, 11, 32, 1)],
     "y_dim_emb": [(1, 12, 32, 1)],
     'obs_mask': [True],
-    "observer_fp": ["experiments/observer32LZ.pickle"],
+    "observer_fp": ["experiments/observer32narrowLZ.pickle"],
 }
 
 
@@ -114,7 +114,7 @@ def train(i: int):
     with open(config["observer_fp"], "rb") as handle:
         observer = pickle.load(handle)
 
-    run = wandb.init(project="dasbi", config=config, group="LZ96_small_window_narrowObs")
+    run = wandb.init(project="dasbi", config=config, group="LZ96_small_window")
     runpath = PATH / f"runs/{run.name}_{run.id}"
     runpath.mkdir(parents=True, exist_ok=True)
 
