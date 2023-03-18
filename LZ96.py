@@ -53,9 +53,9 @@ CONFIG = {
     # Test with assimilation window
     "x_dim": [(1, 1, 32, 1)],
     "y_dim": [(1, 10, 6, 1)],
-    "y_dim_emb": [(1, 12, 32, 1)],
+    "y_dim_emb": [(1, 11, 32, 1)],
     'obs_mask': [False], #+1 in y_dim
-    'ar': [True], #+1 in y_dim_emb (for modargs not embnet)
+    'ar': [False], #+1 in y_dim_emb (for modargs not embnet)
     'roll':[True],
     "observer_fp": ["experiments/observer32narrowLZ.pickle"],
 }
@@ -95,7 +95,7 @@ def build(**config):
         conv_lay=config["embedding"],
         observer_mask=mask
     )
-    return NPE(config["N_ms"], base, emb_net, mod_args)
+    return NPE(config["N_ms"], base, emb_net, mod_args, roll = config["roll"], ar=config["ar"])
 
 
 def process_sim(simulator):
