@@ -207,7 +207,7 @@ def train(i: int):
             x_ar = None
             if config['ar']:
                 x_ar = xb[subset_data - 1]
-                x_ar = x[:, None, ..., None]
+                x_ar = x_ar[:, None, ..., None]
             
             optimizer.zero_grad()
             l = conv_npe.loss(x, y, t, x_ar)
@@ -238,8 +238,8 @@ def train(i: int):
                 )
 
                 x, y, t = (
-                    xb[subset_data - 1],
-                    torch.cat([yb[i - 9 : i + 1].unsqueeze(0) for i in subset_data]),
+                    xb[subset_data],
+                    torch.cat([yb[i - 9 : i + 1].unsqueeze(0) for i in subset_data], dim = 0),
                     tb[subset_data],
                 )
                 x = x[:, None, ..., None]
@@ -247,7 +247,7 @@ def train(i: int):
                 x_ar = None
                 if config['ar']:
                     x_ar = xb[subset_data - 1]
-                    x_ar = x[:, None, ..., None]
+                    x_ar = x_ar[:, None, ..., None]
 
                 losses_val.append(conv_npe.loss(x, y, t, x_ar))
 
