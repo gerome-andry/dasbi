@@ -9,16 +9,20 @@ class ConvNSE(nn.Module):
 
 
 class ConvNPE(nn.Module):
-    def __init__(self, n_lay, base, emb_net, module_args, roll = False):
+    def __init__(self, n_lay, base, emb_net, module_args, roll = False, ar = False):
         super().__init__()
         self.convmod = nn.ModuleList([MSConv(**module_args) for _ in range(n_lay)])
         self.x_dim = module_args["x_dim"]
         self.embed = emb_net
         self.base_dist = base
         self.roll = roll
+        self.autoreg = ar
 
-    def forward(self, x, y, t):
+    def forward(self, x, y, t, x_ar = None):
         y_t = self.embed(y, t)
+        if self.autoreg:
+            y_t = torch.cat((y_t, x_ar), dim = 1)
+
         ladj = x.new_zeros(x.shape[0])
         for mc in self.convmod:
             x, ladj_i = mc(x, y_t)
@@ -33,8 +37,11 @@ class ConvNPE(nn.Module):
                     
         return x, ladj
 
-    def inverse(self, z, y, t):
+    def inverse(self, z, y, t, x_ar = None):
         y_t = self.embed(y, t)
+        if self.autoreg:
+            y_t = torch.cat((y_t, x_ar), dim = 1)
+
         for mc in reversed(self.convmod):
             if self.roll:
                 if self.convmod[0].type == '1D':
@@ -48,7 +55,7 @@ class ConvNPE(nn.Module):
             
         return z
 
-    def sample(self, y, t, n, max_samp=None):
+    def sample(self, y, t, n, max_samp=None, x_ar = None):
         y_dim = y.shape
         t_dim = t.shape
         x_s = []
@@ -61,12 +68,12 @@ class ConvNPE(nn.Module):
             s_dim = self.x_dim
             s_dim[0] = ns * y_dim[0]
             z = z.reshape(tuple(s_dim))
-            x_s.append(self.inverse(z, y_t, t_t).reshape((ns, -1) + tuple(s_dim[1:])))
+            x_s.append(self.inverse(z, y_t, t_t, x_ar=x_ar).reshape((ns, -1) + tuple(s_dim[1:])))
             n -= ns
 
         return torch.cat(x_s, dim=0)
 
-    def loss(self, x, y, t):
-        z, ladj = self.forward(x, y, t)
+    def loss(self, x, y, t, x_ar = None):
+        z, ladj = self.forward(x, y, t, x_ar=x_ar)
         z = z.reshape((z.shape[0], -1))
         return -(ladj + self.base_dist().log_prob(z)).mean()

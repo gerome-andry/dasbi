@@ -53,8 +53,9 @@ CONFIG = {
     # Test with assimilation window
     "x_dim": [(1, 1, 32, 1)],
     "y_dim": [(1, 10, 6, 1)],
-    "y_dim_emb": [(1, 11, 32, 1)],
-    'obs_mask': [False],
+    "y_dim_emb": [(1, 12, 32, 1)],
+    'obs_mask': [False], #+1 in y_dim
+    'ar': [True], #+1 in y_dim_emb (for modargs not embnet)
     'roll':[True],
     "observer_fp": ["experiments/observer32narrowLZ.pickle"],
 }
@@ -84,9 +85,13 @@ def build(**config):
             observer = pickle.load(handle)
         mask = observer.get_mask().to(config['device'])
 
+    emb_out = torch.tensor(config["y_dim_emb"]) 
+    if config['ar']:
+        emb_out[1] -= 1
+
     emb_net = EmbedObs(
         torch.tensor(config["y_dim"]),
-        torch.tensor(config["y_dim_emb"]),
+        emb_out,
         conv_lay=config["embedding"],
         observer_mask=mask
     )
@@ -186,7 +191,7 @@ def train(i: int):
             simt.data[i].cuda(), simt.obs[i].cuda(), simt.time[i].cuda()
         ):
             subset_data = np.random.choice(
-                np.arange(9, traj_len),
+                np.arange(9, traj_len),#because window of 10
                 # traj_len,
                 size=step_per_batch,
                 replace=False,
@@ -199,9 +204,13 @@ def train(i: int):
             )
             x = x[:, None, ..., None]
             y = y[..., None]
-
+            x_ar = None
+            if config['ar']:
+                x_ar = xb[subset_data - 1]
+                x_ar = x[:, None, ..., None]
+            
             optimizer.zero_grad()
-            l = conv_npe.loss(x, y, t)
+            l = conv_npe.loss(x, y, t, x_ar)
             l.backward()
             optimizer.step()
 
@@ -235,8 +244,12 @@ def train(i: int):
                 )
                 x = x[:, None, ..., None]
                 y = y[..., None]
+                x_ar = None
+                if config['ar']:
+                    x_ar = xb[subset_data - 1]
+                    x_ar = x[:, None, ..., None]
 
-                losses_val.append(conv_npe.loss(x, y, t))
+                losses_val.append(conv_npe.loss(x, y, t, x_ar))
 
         ### Logs
         loss_train = torch.stack(losses_train).mean().item()
