@@ -128,8 +128,8 @@ def train(i: int):
         json.dump(config, f)
 
     # Data
-    tmax = 10
-    traj_len = 1024
+    tmax = 100 #To change for AR or not version !!!
+    traj_len = 1024 
     times = torch.linspace(0, tmax, traj_len)
 
     simt = sim(N=config["points"], noise=config["noise"])
