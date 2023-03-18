@@ -19,9 +19,9 @@ n_sim = 2**10
 N = 32
 directory = "SmallLZ"
 modelfname = "LZsmall1step.pth"
-observerfname = "observer32LZ.pickle"
+observerfname = "observer32narrowLZ.pickle"
 
-simulator = sim(N=N, noise=0.5)
+simulator = sim(N=N, noise=0.1)
 observer = ObservatorStation2D((N, 1), (4, 1), (2, 1), (4, 0), (2, 1))
 with open(f"experiments/{observerfname}", "rb") as handle:
     observer = pickle.load(handle)
@@ -39,7 +39,6 @@ simulator.generate_steps(torch.randn((n_sim, N)), times)
 
 MUX = simulator.data.mean(dim=(0, 1))
 SIGMAX = simulator.data.std(dim=(0, 1))
-
 
 def preprocess_x(x):
     return (x - MUX) / SIGMAX
@@ -64,7 +63,6 @@ def postprocess_y(y):
 MUT = simulator.time.mean(dim=(0, 1))
 SIGMAT = simulator.time.std(dim=(0, 1))
 
-
 def preprocess_t(t):
     return (t - MUT) / SIGMAT
 
@@ -72,6 +70,21 @@ def preprocess_t(t):
 def postprocess_t(t):
     return t * SIGMAT + MUT
 
+
+from lampe.plots import corner, mark_point
+import matplotlib.pyplot as plt   
+from matplotlib.animation import FuncAnimation
+
+fig = plt.figure(figsize=(7,7))
+
+def animate(i):
+    fig = corner(simulator.obs[:, i], smooth=2, legend=f"p(y|t = {simulator.time[0, i]})")
+    fig.show()
+
+ani = FuncAnimation(fig, animate, interval=300)
+plt.show()
+
+exit()
 
 start = 256
 finish = 512

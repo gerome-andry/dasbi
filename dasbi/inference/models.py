@@ -9,32 +9,46 @@ class ConvNSE(nn.Module):
 
 
 class ConvNPE(nn.Module):
-    def __init__(self, n_lay, base, emb_net, module_args):
+    def __init__(self, n_lay, base, emb_net, module_args, roll = False):
         super().__init__()
         self.convmod = nn.ModuleList([MSConv(**module_args) for _ in range(n_lay)])
         self.x_dim = module_args["x_dim"]
         self.embed = emb_net
         self.base_dist = base
+        self.roll = roll
 
     def forward(self, x, y, t):
         y_t = self.embed(y, t)
         ladj = x.new_zeros(x.shape[0])
         for mc in self.convmod:
-            x_init = x.clone()
             x, ladj_i = mc(x, y_t)
             ladj += ladj_i
-
+            if self.roll:
+                if self.convmod[0].type == '1D':
+                    dim = x.shape[-2] 
+                    x = x.roll(shifts = dim//4, dims = -2)
+                else:
+                    dim = x.shape[-2:] 
+                    x = x.roll(shifts = (dim[0]//2, dim[1]//2), dims = (-2, -1))
+                    
         return x, ladj
 
     def inverse(self, z, y, t):
         y_t = self.embed(y, t)
         for mc in reversed(self.convmod):
-            z, _ = mc.inverse(z, y_t)
+            if self.roll:
+                if self.convmod[0].type == '1D':
+                    dim = z.shape[-2] 
+                    z = z.roll(shifts = -dim//4, dims = -2)
+                else:
+                    dim = z.shape[-2:] 
+                    z = z.roll(shifts = (-dim[0]//2, -dim[1]//2), dims = (-2, -1))
 
+            z, _ = mc.inverse(z, y_t)
+            
         return z
 
     def sample(self, y, t, n, max_samp=None):
-        # assert y.shape[0] == 1, "Can only condition on a single observation for sampling"
         y_dim = y.shape
         t_dim = t.shape
         x_s = []
