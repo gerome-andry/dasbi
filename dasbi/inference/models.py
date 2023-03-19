@@ -68,7 +68,11 @@ class ConvNPE(nn.Module):
             s_dim = self.x_dim
             s_dim[0] = ns * y_dim[0]
             z = z.reshape(tuple(s_dim))
-            x_s.append(self.inverse(z, y_t, t_t, x_ar=x_ar).reshape((ns, -1) + tuple(s_dim[1:])))
+            x_art = None
+            if self.autoreg:
+                xar_dim = x_ar.shape
+                x_art = x_ar.unsqueeze(0).expand(ns, -1, -1, -1, -1).reshape((-1,) + xar_dim[1:])
+            x_s.append(self.inverse(z, y_t, t_t, x_ar=x_art).reshape((ns, -1) + tuple(s_dim[1:])))
             n -= ns
 
         return torch.cat(x_s, dim=0)

@@ -17,11 +17,11 @@ import pickle
 
 n_sim = 2**10
 N = 32
-directory = "SmallLZ"
-modelfname = "LZsmall1step.pth"
+directory = "ARSmallLZ"
+modelfname = f"experiments/{directory}/LZSmallARcoarse.pth"
 observerfname = "observer32narrowLZ.pickle"
 
-simulator = sim(N=N, noise=0.1)
+simulator = sim(N=N, noise=0.5)
 observer = ObservatorStation2D((N, 1), (4, 1), (2, 1), (4, 0), (2, 1))
 with open(f"experiments/{observerfname}", "rb") as handle:
     observer = pickle.load(handle)
@@ -31,7 +31,7 @@ simulator.init_observer(observer)
 #     pickle.dump(observer, handle, protocol=pickle.HIGHEST_PROTOCOL)
 # observer.visualize()
 
-tmax = 10
+tmax = 100
 traj_len = 1024
 times = torch.linspace(0, tmax, traj_len)
 
@@ -71,24 +71,9 @@ def postprocess_t(t):
     return t * SIGMAT + MUT
 
 
-from lampe.plots import corner, mark_point
-import matplotlib.pyplot as plt   
-from matplotlib.animation import FuncAnimation
-
-fig = plt.figure(figsize=(7,7))
-
-def animate(i):
-    fig = corner(simulator.obs[:, i], smooth=2, legend=f"p(y|t = {simulator.time[0, i]})")
-    fig.show()
-
-ani = FuncAnimation(fig, animate, interval=300)
-plt.show()
-
-exit()
-
 start = 256
 finish = 512
-window = 1
+window = 10
 # TRAIN A MODEL
 simulator.data = simulator.data[:, start:finish]
 simulator.obs = simulator.obs[:, start - window + 1 : finish]
@@ -128,30 +113,23 @@ config = {
     "device": "cuda",
     # Test with assimilation window
     "x_dim": (1, 1, 32, 1),
-    "y_dim": (1, 1, 6, 1),
-    "y_dim_emb": (1, 2, 32, 1),
-    "obs_mask": False,
+    "y_dim": (1, 10, 6, 1),
+    "y_dim_emb": (1, 12, 32, 1),
+    'obs_mask': False,
+    'roll': True,
+    'ar': True,
     "observer_fp": f"experiments/{observerfname}",
 }
 
 device = "cuda"
 model = build(**config).to(device)
 
-# with torch.no_grad():
-#     model(
-#         simulator.data[None, None, 0, 0, :, None].to(device),
-#         simulator.obs[None, :window, 0, :, None].to(device),
-#         simulator.time[0, 0, None].to(device),
-#     )
-
-# state = torch.load(f"{modelfname}", map_location=torch.device(device))
-
-# 1 STEP :
 with torch.no_grad():
     model(
         simulator.data[None, None, 0, 0, :, None].to(device),
-        simulator.obs[None, None, 0, 0, :, None].to(device),
+        simulator.obs[None, :window, 0, :, None].to(device),
         simulator.time[0, 0, None].to(device),
+        x_ar = simulator.data[None, None, 0, 0, :, None].to(device) if config['ar'] else None
     )
 
 state = torch.load(f"{modelfname}", map_location=torch.device(device))
@@ -163,58 +141,67 @@ size = sum(param.numel() for param in model.parameters())
 print(f"Model has {size} trainable parameters")
 
 # EVALUATE CORNER PLOT
-# x, y, t = (
-#     simulator.data[0, window - 1],
-#     simulator.obs[0, :window],
-#     simulator.time[0, window - 1],
-# )
+x, y, t = (
+    simulator.data[0, window - 1],
+    simulator.obs[0, :window],
+    simulator.time[0, window - 1],
+)
 
-# x = x[None, None, :, None]
-# y = y[None, :, :, None]
-# t = t.unsqueeze(-1)
+x_ar = None
+x = x[None, None, :, None]
+y = y[None, :, :, None]
+t = t.unsqueeze(-1)
+if config['ar']:
+    x_ar = simulator.data[0, window - 2]
+    x_ar = x_ar[None, None, :, None].to(device)
 
-# x_s = (
-#     model.sample(y.to(device), t.to(device), 2**12, max_samp=2**8)
-#     .squeeze()
-#     .detach()
-#     .cpu()
-# )
+x_s = (
+    model.sample(y.to(device), t.to(device), 2**12, max_samp=2**8, x_ar = x_ar)
+    .squeeze()
+    .detach()
+    .cpu()
+)
 
-# from lampe.plots import corner, mark_point
+from lampe.plots import corner, mark_point
 
-# fig = corner(x_s[:, ::5], smooth=2, figsize=(6.8, 6.8), legend="p(x | y*)")
+fig = corner(x_s[:, ::5], smooth=2, figsize=(6.8, 6.8), legend="q(x | y*)")
+fig = corner(simulator.data[:,window - 1,::5], smooth = 2, legend="p(x)", figure = fig)
 
-# x_star = x.squeeze()[::5]
-# mark_point(fig, x_star)
+x_star = x.squeeze()[::5]
+mark_point(fig, x_star)
 
-# fig.savefig(f"experiments/{directory}/cornerNPESim.pdf")
+fig.savefig(f"experiments/{directory}/cornerNPESim.pdf")
 
-# y_s = simulator.observe(x_s)
-# fig = corner(y_s, smooth=2, figsize=(6.8, 6.8), legend="p(y | y*)")
+y_s = simulator.observe(x_s)
+fig = corner(y_s, smooth=2, figsize=(6.8, 6.8), legend="q(y | y*)")
+fig = corner(simulator.obs[:,window - 1], smooth = 2, legend="p(y)", figure = fig)
 
-# y_star = y.squeeze()  # [-1]
-# mark_point(fig, y_star)
+y_star = y.squeeze()[-1] 
+mark_point(fig, y_star)
 
-# fig.savefig(f"experiments/{directory}/cornerNPEObs.pdf")
-# fig.clear()
+fig.savefig(f"experiments/{directory}/cornerNPEObs.pdf")
+fig.clear()
 
 # EVALUATE TRAJECTORY
 
 xgt, ygt, tgt = simulator.data[0], simulator.obs[0], simulator.time[0]
+if config['ar']:
+    xgt, ygt, tgt = simulator.data[0,1:], simulator.obs[0,1:], simulator.time[0,1:]
 
+x_ar = None
 y = ygt[..., None]
 t = tgt.unsqueeze(1)
-
-x_s = []
-y_s = []
+if config['ar']:
+    x_ar = simulator.data[0,:-1]
+    x_ar = x_ar[:, None, :, None].to(device)
 
 # ASSIM :
-# y = torch.cat(
-#     [y[i : i + window].unsqueeze(0) for i, _ in enumerate(y[: -window + 1])], dim=0
-# )
+y = torch.cat(
+    [y[i : i + window].unsqueeze(0) for i, _ in enumerate(y[: -window + 1])], dim=0
+)
 # 1 STEP :
-y = y.unsqueeze(1)
-samp = model.sample(y.to(device), t.to(device), 16, max_samp=1).squeeze().detach().cpu()
+# y = y.unsqueeze(1)
+samp = model.sample(y.to(device), t.to(device), 16, max_samp=1, x_ar = x_ar).squeeze().detach().cpu()
 
 y_samp = simulator.observe(postprocess_x(samp)).mean((0))
 samp = samp[0]  # .mean((0))
