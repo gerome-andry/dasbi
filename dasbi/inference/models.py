@@ -30,10 +30,10 @@ class ConvNPE(nn.Module):
             if self.roll:
                 if self.convmod[0].type == '1D':
                     dim = x.shape[-2] 
-                    x = x.roll(shifts = dim//4, dims = -2)
+                    x = x.roll(shifts = dim//8, dims = -2)
                 else:
                     dim = x.shape[-2:] 
-                    x = x.roll(shifts = (dim[0]//2, dim[1]//2), dims = (-2, -1))
+                    x = x.roll(shifts = (dim[0]//4, dim[1]//4), dims = (-2, -1))
                     
         return x, ladj
 
@@ -46,10 +46,10 @@ class ConvNPE(nn.Module):
             if self.roll:
                 if self.convmod[0].type == '1D':
                     dim = z.shape[-2] 
-                    z = z.roll(shifts = -dim//4, dims = -2)
+                    z = z.roll(shifts = -dim//8, dims = -2)
                 else:
                     dim = z.shape[-2:] 
-                    z = z.roll(shifts = (-dim[0]//2, -dim[1]//2), dims = (-2, -1))
+                    z = z.roll(shifts = (-dim[0]//4, -dim[1]//4), dims = (-2, -1))
 
             z, _ = mc.inverse(z, y_t)
             
