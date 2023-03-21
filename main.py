@@ -17,9 +17,9 @@ import pickle
 
 n_sim = 2**10
 N = 32
-directory = "ARSmallLZ"
-modelfname = f"experiments/{directory}/LZSmallARcoarse.pth"
-observerfname = "observer32narrowLZ.pickle"
+directory = "AssimSmallLZ"
+modelfname = f"experiments/{directory}/LZSmall10assim.pth"
+observerfname = "observer32LZ.pickle"
 
 simulator = sim(N=N, noise=0.5)
 observer = ObservatorStation2D((N, 1), (4, 1), (2, 1), (4, 0), (2, 1))
@@ -27,11 +27,12 @@ with open(f"experiments/{observerfname}", "rb") as handle:
     observer = pickle.load(handle)
 simulator.init_observer(observer)
 
+
 # with open('experiments/observer32LZ.pickle', 'wb') as handle:
 #     pickle.dump(observer, handle, protocol=pickle.HIGHEST_PROTOCOL)
 # observer.visualize()
 
-tmax = 100
+tmax = 10
 traj_len = 1024
 times = torch.linspace(0, tmax, traj_len)
 
@@ -114,10 +115,10 @@ config = {
     # Test with assimilation window
     "x_dim": (1, 1, 32, 1),
     "y_dim": (1, 10, 6, 1),
-    "y_dim_emb": (1, 12, 32, 1),
+    "y_dim_emb": (1, 11, 32, 1),
     'obs_mask': False,
-    'roll': True,
-    'ar': True,
+    'roll': False,
+    'ar': False,
     "observer_fp": f"experiments/{observerfname}",
 }
 
@@ -163,11 +164,14 @@ x_s = (
 )
 
 from lampe.plots import corner, mark_point
+points = [0,1,2,
+          14,15,16,
+          29,30,31]
 
-fig = corner(x_s[:, ::5], smooth=2, figsize=(6.8, 6.8), legend="q(x | y*)")
-fig = corner(simulator.data[:,window - 1,::5], smooth = 2, legend="p(x)", figure = fig)
+fig = corner(x_s[:, points], smooth=2, figsize=(6.8, 6.8), legend="q(x | y*)")
+fig = corner(simulator.data[:,window - 1,points], smooth = 2, legend="p(x)", figure = fig)
 
-x_star = x.squeeze()[::5]
+x_star = x.squeeze()[points]
 mark_point(fig, x_star)
 
 fig.savefig(f"experiments/{directory}/cornerNPESim.pdf")

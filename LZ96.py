@@ -128,7 +128,7 @@ def train(i: int):
         json.dump(config, f)
 
     # Data
-    tmax = 10 #To change for AR or not version !!!
+    tmax = 100 #To change for AR or not version !!!
     traj_len = 1024 
     times = torch.linspace(0, tmax, traj_len)
 
