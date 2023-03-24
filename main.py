@@ -22,7 +22,7 @@ modelfname = f"experiments/{directory}/LZSmall10assim.pth"
 observerfname = "observer32LZ.pickle"
 
 simulator = sim(N=N, noise=0.5)
-observer = ObservatorStation2D((N, 1), (4, 1), (2, 1), (4, 0), (2, 1))
+observer = ObservatorStation2D((N, 1), (3, 1), (1, 1), (2, 0), (.8, 1))
 with open(f"experiments/{observerfname}", "rb") as handle:
     observer = pickle.load(handle)
 simulator.init_observer(observer)
@@ -30,14 +30,14 @@ simulator.init_observer(observer)
 
 # with open('experiments/observer32LZ.pickle', 'wb') as handle:
 #     pickle.dump(observer, handle, protocol=pickle.HIGHEST_PROTOCOL)
-# observer.visualize()
+observer.visualize()
 
 tmax = 10
-traj_len = 1024
+traj_len = tmax*10
 times = torch.linspace(0, tmax, traj_len)
 
 simulator.generate_steps(torch.randn((n_sim, N)), times)
-
+exit()
 MUX = simulator.data.mean(dim=(0, 1))
 SIGMAX = simulator.data.std(dim=(0, 1))
 

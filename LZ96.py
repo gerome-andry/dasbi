@@ -26,38 +26,42 @@ from dasbi.simulators.sim_lorenz96 import LZ96 as sim
 
 
 SCRATCH = os.environ.get("SCRATCH", ".")
-PATH = Path(SCRATCH) / "npe/lz96_small"
+PATH = Path(SCRATCH) / "npe_conv/lz96"
 PATH.mkdir(parents=True, exist_ok=True)
 
+N_grid = [2**i for i in range(3,10)]
+Y_grid = [int(np.ceil(x/4)) for x in N_grid]
+lN = len(N_grid)
+window = 1
 CONFIG = {
     # Architecture
-    "embedding": [3],
-    "kernel_size": [2],
-    "ms_modules": [1],
-    "num_conv": [2],
-    "N_ms": [2],
+    "embedding": [3]*lN,
+    "kernel_size": [2]*lN,
+    "ms_modules": [1 + k//128 for k in N_grid],
+    "num_conv": [2]*lN,
+    "N_ms": [2 + k//128 for k in N_grid],
     # Training
-    "epochs": [256],
-    "batch_size": [32],
-    "step_per_batch": [128],
-    "optimizer": ["AdamW"],
-    "learning_rate": [3e-3],  # np.geomspace(1e-3, 1e-4).tolist(),
-    "weight_decay": [1e-4],  # np.geomspace(1e-2, 1e-4).tolist(),
-    "scheduler": ["linear"],  # , 'cosine', 'exponential'],
+    "epochs": [256]*lN,
+    "batch_size": [64]*lN,
+    "step_per_batch": [64]*lN,
+    "optimizer": ["AdamW"]*lN,
+    "learning_rate": [3e-3]*lN,  # np.geomspace(1e-3, 1e-4).tolist(),
+    "weight_decay": [1e-4]*lN,  # np.geomspace(1e-2, 1e-4).tolist(),
+    "scheduler": ["linear"]*lN,  # , 'cosine', 'exponential'],
     # Data
-    "points": [32],
-    "noise": [0.5],
-    "train_sim": [2**10],
-    "val_sim": [2**8],
-    "device": ['cuda'],
+    "points": N_grid,
+    "noise": [0.5]*lN,
+    "train_sim": [2**10]*lN,
+    "val_sim": [2**8]*lN,
+    "device": ['cuda']*lN,
     # Test with assimilation window
-    "x_dim": [(1, 1, 32, 1)],
-    "y_dim": [(1, 10, 6, 1)],
-    "y_dim_emb": [(1, 11, 32, 1)],
-    'obs_mask': [False], #+1 in y_dim
-    'ar': [False], #+1 in y_dim_emb (for modargs not embnet)
-    'roll':[True],
-    "observer_fp": ["experiments/observer32narrowLZ.pickle"],
+    "x_dim": [(1, 1, sp, 1) for sp in N_grid],
+    "y_dim": [(1, window, spy, 1) for spy in Y_grid],
+    "y_dim_emb": [(1, window + 1, sp, 1) for sp in N_grid],
+    'obs_mask': [False]*lN, #+1 in y_dim
+    'ar': [False]*lN, #+1 in y_dim_emb (for modargs not embnet)
+    'roll':[True]*lN,
+    "observer_fp": ["experiments/observer{N}LZ.pickle" for N in N_grid],
 }
 
 
@@ -113,14 +117,15 @@ def process_sim(simulator):
     simulator.time = (simulator.time - MUT) / SIGMAT
 
 
-@job(array=1, cpus=2, gpus=1, ram="32GB", time="20:00:00")
+@job(array=lN, cpus=2, gpus=1, ram="32GB", time="2-00:00:00")
 def train(i: int):
-    config = {key: random.choice(values) for key, values in CONFIG.items()}
+    # config = {key: random.choice(values) for key, values in CONFIG.items()}
+    config = {key : values[i] for key,values in CONFIG.items()}
 
     with open(config["observer_fp"], "rb") as handle:
         observer = pickle.load(handle)
 
-    run = wandb.init(project="dasbi", config=config, group="LZ96_small_window")
+    run = wandb.init(project="dasbi", config=config, group="LZ96_scaling")
     runpath = PATH / f"runs/{run.name}_{run.id}"
     runpath.mkdir(parents=True, exist_ok=True)
 
@@ -128,8 +133,8 @@ def train(i: int):
         json.dump(config, f)
 
     # Data
-    tmax = 100 #To change for AR or not version !!!
-    traj_len = 1024 
+    tmax = 10
+    traj_len = tmax*10 
     times = torch.linspace(0, tmax, traj_len)
 
     simt = sim(N=config["points"], noise=config["noise"])
@@ -144,12 +149,14 @@ def train(i: int):
 
     # Network
     conv_npe = build(**config).cuda()
-
+    size = sum(param.numel() for param in conv_npe.parameters())
+    run.config.num_param = size
+    
     # Training
     epochs = config["epochs"]
     batch_size = config["batch_size"]
     step_per_batch = config["step_per_batch"]
-    best = 200
+    best = 500
 
     ## Optimizer
     if config["optimizer"] == "AdamW":
@@ -181,8 +188,7 @@ def train(i: int):
         i = np.random.choice(
             len(simt.data),
             size=batch_size,
-            replace=True
-            # replace=False,
+            replace=False
         )
 
         start = time.time()
@@ -191,15 +197,14 @@ def train(i: int):
             simt.data[i].cuda(), simt.obs[i].cuda(), simt.time[i].cuda()
         ):
             subset_data = np.random.choice(
-                np.arange(9, traj_len),#because window of 10
-                # traj_len,
+                np.arange(window - 1, traj_len),#because window of 10
                 size=step_per_batch,
                 replace=False,
             )
 
             x, y, t = (
                 xb[subset_data],
-                torch.cat([yb[i - 9 : i + 1].unsqueeze(0) for i in subset_data], dim=0),
+                torch.cat([yb[i - window + 1 : i + 1].unsqueeze(0) for i in subset_data], dim=0),
                 tb[subset_data],
             )
             x = x[:, None, ..., None]
@@ -222,8 +227,7 @@ def train(i: int):
         i = np.random.choice(
             len(simv.data),
             size=batch_size // 4,
-            replace=True
-            # replace=False,
+            replace=False,
         )
 
         with torch.no_grad():
@@ -231,15 +235,14 @@ def train(i: int):
                 simv.data[i].cuda(), simv.obs[i].cuda(), simv.time[i].cuda()
             ):
                 subset_data = np.random.choice(
-                    np.arange(9, traj_len),
-                    # traj_len,
+                    np.arange(window - 1, traj_len),
                     size=step_per_batch,
                     replace=False,
                 )
 
                 x, y, t = (
                     xb[subset_data],
-                    torch.cat([yb[i - 9 : i + 1].unsqueeze(0) for i in subset_data], dim = 0),
+                    torch.cat([yb[i - window + 1 : i + 1].unsqueeze(0) for i in subset_data], dim = 0),
                     tb[subset_data],
                 )
                 x = x[:, None, ..., None]
@@ -274,57 +277,57 @@ def train(i: int):
 
         scheduler.step()
 
-    # Load best checkpoint
-    checkpoints = sorted(runpath.glob("checkpoint_*.pth"))
-    state = torch.load(checkpoints[-1])
+    # # Load best checkpoint
+    # checkpoints = sorted(runpath.glob("checkpoint_*.pth"))
+    # state = torch.load(checkpoints[-1])
 
-    conv_npe.load_state_dict(state)
-    conv_npe.eval()
+    # conv_npe.load_state_dict(state)
+    # conv_npe.eval()
 
-    # Evaluation
-    sime = sim(N=config["points"], noise=config["noise"])
-    sime.init_observer(observer)
-    sime.generate_steps(torch.randn((1, config["points"])), times)
+    # # Evaluation
+    # sime = sim(N=config["points"], noise=config["noise"])
+    # sime.init_observer(observer)
+    # sime.generate_steps(torch.randn((1, config["points"])), times)
 
-    x, y, t = sime.data[9], sime.obs[:10], sime.time[9]
+    # x, y, t = sime.data[9], sime.obs[:10], sime.time[9]
 
-    x = x[:, None, :, None]
-    y = y[None, :, :, None]
-    t = t.unsqueeze(0)
+    # x = x[:, None, :, None]
+    # y = y[None, :, :, None]
+    # t = t.unsqueeze(0)
 
-    traj = []
-    for yt, t in zip(y, t):
-        samp = conv_npe.sample(yt.unsqueeze(0), t.unsqueeze(1), 3).cpu().numpy()
-        traj.append(samp.unsqueeze(0))
-    traj = torch.cat(traj, dim=0).squeeze()
+    # traj = []
+    # for yt, t in zip(y, t):
+    #     samp = conv_npe.sample(yt.unsqueeze(0), t.unsqueeze(1), 3).cpu().numpy()
+    #     traj.append(samp.unsqueeze(0))
+    # traj = torch.cat(traj, dim=0).squeeze()
 
-    fig, axs = plt.subplots(4, 1, figsize=(7, 7))
-    figo, axso = plt.subplots(4, 1, figsize=(7, 7))
+    # fig, axs = plt.subplots(4, 1, figsize=(7, 7))
+    # figo, axso = plt.subplots(4, 1, figsize=(7, 7))
 
-    for i, (ax, axo) in enumerate(zip(axs.flat, axso.flat)):
-        if i == 3:
-            ax.imshow(x.squeeze().cpu().numpy(), cmap=seaborn.cm.coolwarm)
-            axo.imshow(y.squeeze().cpu().numpy(), cmap=seaborn.cm.coolwarm)
-        else:
-            ax.imshow(traj[..., i], cmap=seaborn.cm.coolwarm)
-            o = sime.observe(traj[..., i])
-            axo.imshow(o, cmap=seaborn.cm.coolwarm)
+    # for i, (ax, axo) in enumerate(zip(axs.flat, axso.flat)):
+    #     if i == 3:
+    #         ax.imshow(x.squeeze().cpu().numpy(), cmap=seaborn.cm.coolwarm)
+    #         axo.imshow(y.squeeze().cpu().numpy(), cmap=seaborn.cm.coolwarm)
+    #     else:
+    #         ax.imshow(traj[..., i], cmap=seaborn.cm.coolwarm)
+    #         o = sime.observe(traj[..., i])
+    #         axo.imshow(o, cmap=seaborn.cm.coolwarm)
 
-        ax.label_outer()
-        axo.label_outer()
+    #     ax.label_outer()
+    #     axo.label_outer()
 
-    fig.tight_layout()
-    figo.tight_layout()
+    # fig.tight_layout()
+    # figo.tight_layout()
 
-    run.log({"sample_traj": wandb.Image(fig)})
-    run.log({"sample_obs": wandb.Image(figo)})
+    # run.log({"sample_traj": wandb.Image(fig)})
+    # run.log({"sample_obs": wandb.Image(figo)})
     run.finish()
 
 
 if __name__ == "__main__":
     schedule(
         train,
-        name="Hyperparameter search",
+        name="Scaling LZ",
         backend="slurm",
         settings={"export": "ALL"},
         env=[
