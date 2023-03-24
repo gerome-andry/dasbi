@@ -61,7 +61,7 @@ CONFIG = {
     'obs_mask': [False]*lN, #+1 in y_dim
     'ar': [False]*lN, #+1 in y_dim_emb (for modargs not embnet)
     'roll':[True]*lN,
-    "observer_fp": ["experiments/observer{N}LZ.pickle" for N in N_grid],
+    "observer_fp": [f"experiments/observer{N}LZ.pickle" for N in N_grid],
 }
 
 
@@ -151,7 +151,7 @@ def train(i: int):
     conv_npe = build(**config).cuda()
     size = sum(param.numel() for param in conv_npe.parameters())
     run.config.num_param = size
-    
+
     # Training
     epochs = config["epochs"]
     batch_size = config["batch_size"]
