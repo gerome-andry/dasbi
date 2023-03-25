@@ -36,6 +36,8 @@ window = 1
 CONFIG = {
     # Architecture
     "embedding": [3]*lN,
+    "hf": [[64 + int(8*np.log2(k)//3), 16] for k in N_grid],
+    "tf": [2 + k//512 for k in N_grid],
     # Training
     "epochs": [256]*lN,
     "batch_size": [64]*lN,
@@ -70,7 +72,7 @@ def build(**config):
         conv_lay=config["embedding"],
         observer_mask=mask
     )
-    myNSF = NPE(N, 3*N, build = NSF, passes = 2, hidden_features = [64 + int(8*np.log2(N)//3), 16], transforms = 2 + N//512)
+    myNSF = NPE(N, 3*N, build = NSF, passes = 2, hidden_features = config['hf'], transforms = config['tf'])
     return NsfNPE(emb_net, myNSF)
 
 
@@ -89,7 +91,7 @@ def process_sim(simulator):
     simulator.time = (simulator.time - MUT) / SIGMAT
 
 
-@job(array=1, cpus=2, gpus=1, ram="32GB", time="3-00:00:00")
+@job(array=lN, cpus=2, gpus=1, ram="32GB", time="3-00:00:00")
 def train(i: int):
     # config = {key: random.choice(values) for key, values in CONFIG.items()}
     config = {key : values[i] for key,values in CONFIG.items()}
