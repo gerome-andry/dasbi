@@ -73,8 +73,8 @@ class MSConv(Transform):
                 xd[-2:] //= 4
                 yd[-2:] //= 4
 
-            xd[-2:] = torch.clamp(x_dim[-2:], 1)
-            yd[-2:] = torch.clamp(y_dim[-2:], 1)
+            xd[-2:] = torch.clamp(xd[-2:], 1)
+            yd[-2:] = torch.clamp(yd[-2:], 1)
 
         self.conv_y = nn.ModuleList(
             [nn.Conv2d(4 * y_dim[1], y_dim[1], 1) for _ in range(self.n_mod - 1)]
