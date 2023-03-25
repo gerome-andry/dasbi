@@ -4,8 +4,25 @@ import torch.nn as nn
 import numpy as np
 from tqdm import trange
 
-class ConvNSE(nn.Module):
-    pass
+class NsfNPE(nn.Module):
+    def __init__(self, emb, NSF):
+        super().__init__()
+        self.flow = NSF
+        self.emb = emb
+    
+    def forward(self, x, y, t):
+        y_t = self.emb(y,t)
+        batch = x.shape[0]
+        return self.flow(x.reshape((batch, -1)), y_t.reshape(batch, -1))
+
+    def sample(self, y, t, n):
+        y_t = self.emb(y,t)
+        batch = y_t.shape[0]
+        return self.flow.flow(y_t.reshape((batch, -1))).sample((n,))
+    
+    def loss(self, x, y, t):
+        log_p = self(x,y,t)
+        return -log_p.mean()
 
 
 class ConvNPE(nn.Module):

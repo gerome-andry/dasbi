@@ -18,28 +18,24 @@ from pathlib import Path
 from tqdm import trange
 from typing import *
 
-from zuko.distributions import DiagNormal
-from zuko.flows import Unconditional
-from dasbi.inference.models import ConvNPE as NPE
+from lampe.inference import NPE
+from zuko.flows import NSF
+
 from dasbi.networks.embedding import EmbedObs
 from dasbi.simulators.sim_lorenz96 import LZ96 as sim
-
+from dasbi.inference.models import NsfNPE
 
 SCRATCH = os.environ.get("SCRATCH", ".")
-PATH = Path(SCRATCH) / "npe_conv/lz96"
+PATH = Path(SCRATCH) / "npe_nsf/lz96"
 PATH.mkdir(parents=True, exist_ok=True)
 
 N_grid = [2**i for i in range(3,10)]
 Y_grid = [int(np.ceil(x/4)) for x in N_grid]
 lN = len(N_grid)
-window = 10
+window = 1
 CONFIG = {
     # Architecture
     "embedding": [3]*lN,
-    "kernel_size": [2]*lN,
-    "ms_modules": [1 + k//128 for k in N_grid],
-    "num_conv": [2]*lN,
-    "N_ms": [2 + k//128 for k in N_grid],
     # Training
     "epochs": [256]*lN,
     "batch_size": [64]*lN,
@@ -57,41 +53,16 @@ CONFIG = {
     # Test with assimilation window
     "x_dim": [(1, 1, sp, 1) for sp in N_grid],
     "y_dim": [(1, window, spy, 1) for spy in Y_grid],
-    "y_dim_emb": [(1, window + 1, sp, 1) for sp in N_grid],
-    'obs_mask': [False]*lN, #+1 in y_dim
-    'ar': [False]*lN, #+1 in y_dim_emb (for modargs not embnet)
-    'roll':[True]*lN,
+    "y_dim_emb": [(1, 3, sp, 1) for sp in N_grid],
     "observer_fp": [f"experiments/observer{N}LZ.pickle" for N in N_grid],
 }
 
 
 def build(**config):
-    mod_args = {
-        "x_dim": torch.tensor(config["x_dim"]),
-        "y_dim": torch.tensor(config["y_dim_emb"]),
-        "n_modules": config["ms_modules"],
-        "n_c": config["num_conv"],
-        "k_sz": torch.tensor((config["kernel_size"], 1)),
-        "type": "1D",
-    }
-
     N = config["points"]
-    base = Unconditional(
-        DiagNormal,
-        torch.zeros(N),
-        torch.ones(N),
-        buffer=True,
-    )
 
     mask = None
-    if config['obs_mask']:
-        with open(config["observer_fp"], "rb") as handle:
-            observer = pickle.load(handle)
-        mask = observer.get_mask().to(config['device'])
-
     emb_out = torch.tensor(config["y_dim_emb"]) 
-    if config['ar']:
-        emb_out[1] -= 1
 
     emb_net = EmbedObs(
         torch.tensor(config["y_dim"]),
@@ -99,7 +70,8 @@ def build(**config):
         conv_lay=config["embedding"],
         observer_mask=mask
     )
-    return NPE(config["N_ms"], base, emb_net, mod_args, roll = config["roll"], ar=config["ar"])
+    myNSF = NPE(N, 3*N, build = NSF, passes = 2, hidden_features = [64 + 8*int(torch.log2(N)//3), 16], transforms = 2 + N//512)
+    return NsfNPE(emb_net, myNSF)
 
 
 def process_sim(simulator):
@@ -125,7 +97,7 @@ def train(i: int):
     with open(config["observer_fp"], "rb") as handle:
         observer = pickle.load(handle)
 
-    run = wandb.init(project="dasbi", config=config, group="LZ96_scaling_assim")
+    run = wandb.init(project="dasbi", config=config, group="LZ96_scaling_step")
     runpath = PATH / f"runs/{run.name}_{run.id}"
     runpath.mkdir(parents=True, exist_ok=True)
 
@@ -209,13 +181,9 @@ def train(i: int):
             )
             x = x[:, None, ..., None]
             y = y[..., None]
-            x_ar = None
-            if config['ar']:
-                x_ar = xb[subset_data - 1]
-                x_ar = x_ar[:, None, ..., None]
             
             optimizer.zero_grad()
-            l = conv_npe.loss(x, y, t, x_ar)
+            l = conv_npe.loss(x, y, t)
             l.backward()
             optimizer.step()
 
@@ -247,12 +215,8 @@ def train(i: int):
                 )
                 x = x[:, None, ..., None]
                 y = y[..., None]
-                x_ar = None
-                if config['ar']:
-                    x_ar = xb[subset_data - 1]
-                    x_ar = x_ar[:, None, ..., None]
-
-                losses_val.append(conv_npe.loss(x, y, t, x_ar))
+                
+                losses_val.append(conv_npe.loss(x, y, t))
 
         ### Logs
         loss_train = torch.stack(losses_train).mean().item()
@@ -277,50 +241,6 @@ def train(i: int):
 
         scheduler.step()
 
-    # # Load best checkpoint
-    # checkpoints = sorted(runpath.glob("checkpoint_*.pth"))
-    # state = torch.load(checkpoints[-1])
-
-    # conv_npe.load_state_dict(state)
-    # conv_npe.eval()
-
-    # # Evaluation
-    # sime = sim(N=config["points"], noise=config["noise"])
-    # sime.init_observer(observer)
-    # sime.generate_steps(torch.randn((1, config["points"])), times)
-
-    # x, y, t = sime.data[9], sime.obs[:10], sime.time[9]
-
-    # x = x[:, None, :, None]
-    # y = y[None, :, :, None]
-    # t = t.unsqueeze(0)
-
-    # traj = []
-    # for yt, t in zip(y, t):
-    #     samp = conv_npe.sample(yt.unsqueeze(0), t.unsqueeze(1), 3).cpu().numpy()
-    #     traj.append(samp.unsqueeze(0))
-    # traj = torch.cat(traj, dim=0).squeeze()
-
-    # fig, axs = plt.subplots(4, 1, figsize=(7, 7))
-    # figo, axso = plt.subplots(4, 1, figsize=(7, 7))
-
-    # for i, (ax, axo) in enumerate(zip(axs.flat, axso.flat)):
-    #     if i == 3:
-    #         ax.imshow(x.squeeze().cpu().numpy(), cmap=seaborn.cm.coolwarm)
-    #         axo.imshow(y.squeeze().cpu().numpy(), cmap=seaborn.cm.coolwarm)
-    #     else:
-    #         ax.imshow(traj[..., i], cmap=seaborn.cm.coolwarm)
-    #         o = sime.observe(traj[..., i])
-    #         axo.imshow(o, cmap=seaborn.cm.coolwarm)
-
-    #     ax.label_outer()
-    #     axo.label_outer()
-
-    # fig.tight_layout()
-    # figo.tight_layout()
-
-    # run.log({"sample_traj": wandb.Image(fig)})
-    # run.log({"sample_obs": wandb.Image(figo)})
     run.finish()
 
 

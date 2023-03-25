@@ -8,123 +8,150 @@ import torch
 
 from tqdm import tqdm
 
-from LZ96 import build
+from LZ96_CONV import build
 
 # GENERATE DATA AND OBSERVATIONS
 torch.manual_seed(42)
 
 import pickle
 
-n_sim = 2**10
-N = 32
-directory = "AssimSmallLZ"
-modelfname = f"experiments/{directory}/LZSmall10assim.pth"
-observerfname = "observer32LZ.pickle"
+from lampe.inference import NPE     
+from zuko.flows import NSF 
+from dasbi.networks.embedding import EmbedObs
 
-simulator = sim(N=N, noise=0.5)
-observer = ObservatorStation2D((N, 1), (3, 1), (1, 1), (2, 0), (.8, 1))
-with open(f"experiments/{observerfname}", "rb") as handle:
-    observer = pickle.load(handle)
-simulator.init_observer(observer)
+class myMOD(torch.nn.Module):
+    def __init__(self, emb, NSF):
+        super().__init__()
+        self.flow = NSF
+        self.emb = emb 
+
+for i in range(3,10):
+    N = 2**i
+# exit()
+
+    n_sim = 2**10
+    # N = 8
+    directory = "AssimSmallLZ"
+    modelfname = f"experiments/{directory}/LZSmall10assim.pth"
+    observerfname = "observer32LZ.pickle"
+
+# simulator = sim(N=N, noise=0.5)
+# observer = ObservatorStation2D((N, 1), (3, 1), (1, 1), (2, 0), (.8, 1))
+# with open(f"experiments/{observerfname}", "rb") as handle:
+#     observer = pickle.load(handle)
+# simulator.init_observer(observer)
 
 
-# with open('experiments/observer32LZ.pickle', 'wb') as handle:
-#     pickle.dump(observer, handle, protocol=pickle.HIGHEST_PROTOCOL)
-observer.visualize()
+# # with open('experiments/observer32LZ.pickle', 'wb') as handle:
+# #     pickle.dump(observer, handle, protocol=pickle.HIGHEST_PROTOCOL)
+# observer.visualize()
 
-tmax = 10
-traj_len = tmax*10
-times = torch.linspace(0, tmax, traj_len)
+# tmax = 10
+# traj_len = tmax*10
+# times = torch.linspace(0, tmax, traj_len)
 
-simulator.generate_steps(torch.randn((n_sim, N)), times)
+# simulator.generate_steps(torch.randn((n_sim, N)), times)
+
+# MUX = simulator.data.mean(dim=(0, 1))
+# SIGMAX = simulator.data.std(dim=(0, 1))
+
+# def preprocess_x(x):
+#     return (x - MUX) / SIGMAX
+
+
+# def postprocess_x(x):
+#     return x * SIGMAX + MUX
+
+
+# MUY = simulator.obs.mean(dim=(0, 1))
+# SIGMAY = simulator.obs.std(dim=(0, 1))
+
+
+# def preprocess_y(y):
+#     return (y - MUY) / SIGMAY
+
+
+# def postprocess_y(y):
+#     return y * SIGMAY + MUY
+
+
+# MUT = simulator.time.mean(dim=(0, 1))
+# SIGMAT = simulator.time.std(dim=(0, 1))
+
+# def preprocess_t(t):
+#     return (t - MUT) / SIGMAT
+
+
+# def postprocess_t(t):
+#     return t * SIGMAT + MUT
+
+
+# start = 256
+# finish = 512
+# window = 10
+# # TRAIN A MODEL
+# simulator.data = simulator.data[:, start:finish]
+# simulator.obs = simulator.obs[:, start - window + 1 : finish]
+# simulator.time = simulator.time[:, start:finish]
+
+# simulator.display_sim(obs=True, filename=f"experiments/{directory}/hovGT")
+# simulator.data = preprocess_x(simulator.data)
+# simulator.obs = preprocess_y(simulator.obs)
+# simulator.time = preprocess_t(simulator.time)
+
+    base = Unconditional(
+        DiagNormal,
+        torch.zeros(N),
+        torch.ones(N),
+        buffer=True,
+    )
+
+    config = {
+        "embedding": 3,
+        "kernel_size": 2,
+        "ms_modules": 1 + N//256,
+        "num_conv": 2,
+        "N_ms": 2 + N//128,
+        # Training
+        "epochs": 256,
+        "batch_size": 32,
+        "step_per_batch": 128,
+        "optimizer": "AdamW",
+        "learning_rate": 3e-3,  # np.geomspace(1e-3, 1e-4).tolist(),
+        "weight_decay": 1e-4,  # np.geomspace(1e-2, 1e-4).tolist(),
+        "scheduler": "linear",  # , 'cosine', 'exponential'],
+        # Data
+        "points": 32,
+        "noise": 0.5,
+        "train_sim": 2**10,
+        "val_sim": 2**8,
+        "device": "cpu",
+        # Test with assimilation window
+        "x_dim": (1, 1, N, 1),
+        "y_dim": (1, 10, N//4, 1),
+        "y_dim_emb": (1, 3, N, 1),
+        'obs_mask': False,
+        'roll': True,
+        'ar': False,
+        "observer_fp": f"experiments/{observerfname}",
+    }
+
+    model = NPE(N, 3*N, build = NSF, passes = 2, hidden_features = [64 + 8*i//3,16], transforms = 2 + N//512)
+    emb_out = torch.tensor(config["y_dim_emb"])
+    emb = EmbedObs(
+        torch.tensor(config["y_dim"]),
+        emb_out,
+        conv_lay=config["embedding"],
+        observer_mask=None
+    )
+    model = myMOD(emb, model)
+    print('NSF:',sum(param.numel() for param in model.parameters()))
+
+    device = "cpu"
+    model = build(**config).to(device)
+    print('NPE:',sum(param.numel() for param in model.parameters()))
+
 exit()
-MUX = simulator.data.mean(dim=(0, 1))
-SIGMAX = simulator.data.std(dim=(0, 1))
-
-def preprocess_x(x):
-    return (x - MUX) / SIGMAX
-
-
-def postprocess_x(x):
-    return x * SIGMAX + MUX
-
-
-MUY = simulator.obs.mean(dim=(0, 1))
-SIGMAY = simulator.obs.std(dim=(0, 1))
-
-
-def preprocess_y(y):
-    return (y - MUY) / SIGMAY
-
-
-def postprocess_y(y):
-    return y * SIGMAY + MUY
-
-
-MUT = simulator.time.mean(dim=(0, 1))
-SIGMAT = simulator.time.std(dim=(0, 1))
-
-def preprocess_t(t):
-    return (t - MUT) / SIGMAT
-
-
-def postprocess_t(t):
-    return t * SIGMAT + MUT
-
-
-start = 256
-finish = 512
-window = 10
-# TRAIN A MODEL
-simulator.data = simulator.data[:, start:finish]
-simulator.obs = simulator.obs[:, start - window + 1 : finish]
-simulator.time = simulator.time[:, start:finish]
-
-simulator.display_sim(obs=True, filename=f"experiments/{directory}/hovGT")
-simulator.data = preprocess_x(simulator.data)
-simulator.obs = preprocess_y(simulator.obs)
-simulator.time = preprocess_t(simulator.time)
-
-base = Unconditional(
-    DiagNormal,
-    torch.zeros(N),
-    torch.ones(N),
-    buffer=True,
-)
-
-config = {
-    "embedding": 3,
-    "kernel_size": 2,
-    "ms_modules": 1,
-    "num_conv": 2,
-    "N_ms": 2,
-    # Training
-    "epochs": 256,
-    "batch_size": 32,
-    "step_per_batch": 128,
-    "optimizer": "AdamW",
-    "learning_rate": 3e-3,  # np.geomspace(1e-3, 1e-4).tolist(),
-    "weight_decay": 1e-4,  # np.geomspace(1e-2, 1e-4).tolist(),
-    "scheduler": "linear",  # , 'cosine', 'exponential'],
-    # Data
-    "points": 32,
-    "noise": 0.5,
-    "train_sim": 2**10,
-    "val_sim": 2**8,
-    "device": "cuda",
-    # Test with assimilation window
-    "x_dim": (1, 1, 32, 1),
-    "y_dim": (1, 10, 6, 1),
-    "y_dim_emb": (1, 11, 32, 1),
-    'obs_mask': False,
-    'roll': False,
-    'ar': False,
-    "observer_fp": f"experiments/{observerfname}",
-}
-
-device = "cuda"
-model = build(**config).to(device)
-
 with torch.no_grad():
     model(
         simulator.data[None, None, 0, 0, :, None].to(device),
