@@ -34,13 +34,13 @@ class ConvEmb(nn.Module):
     def __init__(self, input_dim, output_lg):
         super().__init__()
         ks = torch.clamp(input_dim[-2:] // 3, 1)
-        strides = torch.clamp(input_dim[-2:] - ks - 6, 1)
+        strides = torch.clamp((input_dim[-2:] - ks)//7, 1)
         self.conv1 = nn.Conv2d(input_dim[1], input_dim[1] * 4, tuple(ks), stride = tuple(strides))
         self.apool_in = nn.AvgPool2d(tuple(ks), stride=tuple(strides))
         self.conv2 = nn.Conv2d(input_dim[1] * 5, 1, (1, 1))
         self.act = nn.ReLU()
 
-        self.lin = nn.Linear(torch.prod(input_dim[-2:] - ks + 2 - strides), output_lg)
+        self.lin = nn.Linear(torch.prod((input_dim[-2:] - ks)//strides + 1), output_lg)
 
     def forward(self, x, y):
         emb_y = self.conv1(y)
