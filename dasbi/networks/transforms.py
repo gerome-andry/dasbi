@@ -99,29 +99,28 @@ class InvConv(Transform):
         return tu(x)
 
     def forward(self, x, context):
-        batch_size = x.shape[0]
+        b,c,h,w = x.shape
         z = torch.zeros_like(x)
 
         weights = self.conv_kern(self.net(self.kernel, context))
-        print(weights)
-        weights = weights.reshape((-1, 1) + tuple(self.ks))
         x_p = self.triang_pad(x)
-        z = nn.functional.conv2d(x_p, weights)
-        z = z[:,:1,...]
+        _,_,hp,wp = x_p.shape
+        z = nn.functional.conv2d(x_p.view(1,b*c,hp,wp), weights.view((b*c,1,) + weights.shape[-2:]), groups = b*c)
+        z = z.reshape((b,c,h,w))
 
-        ladj = z.new_zeros(batch_size)
+        ladj = z.new_zeros(b)
 
         return z, ladj
 
     def inverse(self, z, context):
-        batch_size, c, h, w = z.shape
+        b, c, h, w = z.shape
         x = torch.zeros_like(z)
 
         weights = self.conv_kern(self.net(self.kernel, context))
-        c_mat = self.fc_from_conv(weights, z)
-        x = z.permute((0, 2, 3, 1))
-        x = x.reshape((batch_size, c * h * w))
-        x = torch.linalg.solve(c_mat, x).reshape(batch_size, h, w, c).permute((0, 3, 1, 2))
+        c_mat = self.fc_from_conv(weights.view(b*c,weights.shape[-2], weights.shape[-1]), z.view(b*c,h,w))
+        x = z#.permute((0, 2, 3, 1))
+        x = x.reshape((b* c , h * w))
+        x = torch.linalg.solve(c_mat, x).reshape(b, c, h, w)#.permute((0, 3, 1, 2))
 
         ladj = None
 
@@ -134,10 +133,10 @@ class InvConv(Transform):
         return ck
 
     def fc_from_conv(self, kern, x):
-        xdim = (x.shape[0],) + x.shape[-2:]
+        xdim = x.shape
         K = x.new_ones(xdim)
         K = self.triang_pad(K)
-        c_mat = x.new_zeros((x.shape[0],) + (x[0,0, ...].numel(),) * 2)
+        c_mat = x.new_zeros((x.shape[0],) + (x[0, ...].numel(),) * 2)
 
         row = 0
         for i in range(K.shape[1] - kern.shape[1] + 1):
@@ -331,10 +330,10 @@ if __name__ == "__main__":
         
     torch.manual_seed(42)
     ic = InvConv(torch.tensor((2,3,3)), ConvEmb(torch.tensor((1,1,1,1)), 16))
-    x = torch.randint(10, (4,1,3,3)).float()
+    x = torch.randint(10, (2,2,3,3)).float()
     print(x)
-    z,_ = ic(x, torch.ones((4,1,1,1)))
+    z,_ = ic(x, torch.ones((2,1,1,1)))
     print(z)
-    x = ic.inverse(z, torch.ones((4,1,1,1)))
+    x = ic.inverse(z, torch.ones((2,1,1,1)))
     print(x)
     pass

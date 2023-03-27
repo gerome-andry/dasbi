@@ -156,13 +156,14 @@ class ConvStep(Transform):
 
         for _ in range(n_conv):
             k_net = ConvEmb(context_dim, input_dim[1]*(torch.prod(kernel_sz) - 1)) #C*K**2 elmts
+            k_sz = (input_dim[1],)+kernel_sz
             self.conv_mod.append(
                 nn.ModuleList(
                     [
-                        InvConv(kernel_sz, k_net, mode=mode[0]),
-                        InvConv(kernel_sz, k_net, mode=mode[1]),
-                        InvConv(kernel_sz, k_net, mode=mode[2]),
-                        InvConv(kernel_sz, k_net, mode=mode[3]),
+                        InvConv(k_sz, k_net, mode=mode[0]),
+                        InvConv(k_sz, k_net, mode=mode[1]),
+                        InvConv(k_sz, k_net, mode=mode[2]),
+                        InvConv(k_sz, k_net, mode=mode[3]),
                         ActNorm(),
                     ]
                 )
