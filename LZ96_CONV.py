@@ -32,7 +32,7 @@ PATH.mkdir(parents=True, exist_ok=True)
 N_grid = [2**i for i in range(3,10)]
 Y_grid = [int(np.ceil(x/4)) for x in N_grid]
 lN = len(N_grid)
-window = 10
+window = 1
 CONFIG = {
     # Architecture
     "embedding": [3]*lN,
@@ -117,7 +117,7 @@ def process_sim(simulator):
     simulator.time = (simulator.time - MUT) / SIGMAT
 
 
-@job(array=1, cpus=2, gpus=1, ram="32GB", time="3-00:00:00")
+@job(array=lN, cpus=2, gpus=1, ram="32GB", time="20:00:00")
 def train(i: int):
     # config = {key: random.choice(values) for key, values in CONFIG.items()}
     config = {key : values[i] for key,values in CONFIG.items()}
@@ -125,7 +125,7 @@ def train(i: int):
     with open(config["observer_fp"], "rb") as handle:
         observer = pickle.load(handle)
 
-    run = wandb.init(project="dasbi", config=config, group="LZ96_scaling_assim")
+    run = wandb.init(project="dasbi", config=config, group="LZ96_scaling_step")
     runpath = PATH / f"runs/{run.name}_{run.id}"
     runpath.mkdir(parents=True, exist_ok=True)
 
