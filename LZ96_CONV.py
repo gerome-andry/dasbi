@@ -41,7 +41,7 @@ CONFIG = {
     "num_conv": [2]*lN,
     "N_ms": [2 + k//128 for k in N_grid],
     # Training
-    "epochs": [256]*lN,
+    "epochs": [512]*lN,
     "batch_size": [64]*lN,
     "step_per_batch": [64]*lN,
     "optimizer": ["AdamW"]*lN,
