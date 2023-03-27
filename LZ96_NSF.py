@@ -32,12 +32,12 @@ PATH.mkdir(parents=True, exist_ok=True)
 N_grid = [2**i for i in range(3,10)]
 Y_grid = [int(np.ceil(x/4)) for x in N_grid]
 lN = len(N_grid)
-window = 10
+window = 1
 CONFIG = {
     # Architecture
     "embedding": [3]*lN,
-    "hf": [[16 + 8*int(np.log2(k)//3), ]*2 for k in N_grid],
-    "tf": [2 + k//512 for k in N_grid],
+    "hf": [[2*int(np.sqrt(k)), ]*2 for k in N_grid],
+    "tf": [2 + k//256 for k in N_grid],
     # Training
     "epochs": [256]*lN,
     "batch_size": [64]*lN,
@@ -99,7 +99,7 @@ def train(i: int):
     with open(config["observer_fp"], "rb") as handle:
         observer = pickle.load(handle)
 
-    run = wandb.init(project="dasbi", config=config, group="LZ96_scaling_assim")
+    run = wandb.init(project="dasbi", config=config, group="LZ96_scaling_step")
     runpath = PATH / f"runs/{run.name}_{run.id}"
     runpath.mkdir(parents=True, exist_ok=True)
 

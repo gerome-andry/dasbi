@@ -135,8 +135,8 @@ for i in range(3,10):
         'ar': False,
         "observer_fp": f"experiments/{observerfname}",
     }
-
-    model = NPE(N, 3*N, build = NSF, passes = 2, hidden_features = [16 + 8*i//3,16 + 8*i//3], transforms = 2 + N//512)
+    from math import sqrt
+    model = NPE(N, 3*N, build = NSF, passes = 2, hidden_features = [2*int(sqrt(N)),2*int(sqrt(N))], transforms = 2 + N//256)
     emb_out = torch.tensor(config["y_dim_emb"])
     emb = EmbedObs(
         torch.tensor(config["y_dim"]),
