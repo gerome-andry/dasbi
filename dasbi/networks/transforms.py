@@ -50,22 +50,22 @@ class InvConv(Transform):
         self.mode = mode
         self.net = kern_net
         self.ks = kernel_sz
-        self.kernel = nn.Parameter(torch.rand(params_k - 1))
+        self.kernel = nn.Parameter(torch.rand(params_k - kernel_sz[0]))
 
         self.mask = torch.ones(tuple(self.ks), dtype=torch.bool)
-        hpad, wpad = self.ks - 1
+        hpad, wpad = self.ks[1:] - 1
         if self.mode == "UL":
             self.pad = (wpad, 0, hpad, 0)
-            self.mask[-1, -1] = 0
+            self.mask[:,-1, -1] = 0
         elif self.mode == "UR":
             self.pad = (0, wpad, hpad, 0)
-            self.mask[-1, 0] = 0
+            self.mask[:,-1, 0] = 0
         elif self.mode == "LL":
             self.pad = (wpad, 0, 0, hpad)
-            self.mask[0, -1] = 0
+            self.mask[:,0, -1] = 0
         else:  # LR
             self.pad = (0, wpad, 0, hpad)
-            self.mask[0, 0] = 0
+            self.mask[:,0, 0] = 0
 
     def triang_pad(self, x):
         return nn.functional.pad(x, self.pad)
@@ -103,6 +103,7 @@ class InvConv(Transform):
         z = torch.zeros_like(x)
 
         weights = self.conv_kern(self.net(self.kernel, context))
+        print(weights)
         weights = weights.reshape((-1, 1) + tuple(self.ks))
         x_p = self.triang_pad(x)
         z = nn.functional.conv2d(x_p, weights)
@@ -327,12 +328,13 @@ if __name__ == "__main__":
             out = self.lin(emb_y) + x
 
             return self.act(out)
+        
     torch.manual_seed(42)
-    ic = InvConv(torch.tensor((3,3)), ConvEmb(torch.tensor((1,1,1,1)), 8))
-    x = torch.randint(10, (2,1,3,3)).float()
+    ic = InvConv(torch.tensor((2,3,3)), ConvEmb(torch.tensor((1,1,1,1)), 16))
+    x = torch.randint(10, (4,1,3,3)).float()
     print(x)
-    z,_ = ic(x, torch.ones((2,1,1,1)))
+    z,_ = ic(x, torch.ones((4,1,1,1)))
     print(z)
-    x = ic.inverse(z, torch.ones((2,1,1,1)))
+    x = ic.inverse(z, torch.ones((4,1,1,1)))
     print(x)
     pass
