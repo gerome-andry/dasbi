@@ -47,7 +47,7 @@ class ConvEmb(nn.Module):
         emb_y = self.act(emb_y)
         emb_y = torch.cat((self.apool_in(y), emb_y), dim=1)
         emb_y = self.conv2(emb_y)
-        emb_y = self.act(emb_y).flatten()
+        emb_y = self.act(emb_y).flatten(start_dim = 1)
         out = self.lin(emb_y) + x
 
         return self.act(out)
