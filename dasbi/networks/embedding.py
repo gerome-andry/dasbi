@@ -83,5 +83,5 @@ if __name__ == "__main__":
     import os
 
     os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
-    eo = EmbedObs((1, 1, 3, 3), (1, 3, 4, 4), observer_mask=torch.randint(2, (4,4)))
-    print(eo(torch.zeros((2,1,3,3)), torch.ones(2)))
+    eo = EmbedObs((1, 1, 512//4, 1), (1, 3, 512, 1))
+    print(eo(torch.randn((64,1,512//4,1)), torch.ones(64)).isnan().sum())

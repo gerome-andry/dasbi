@@ -51,7 +51,7 @@ class InvConv(Transform):
         self.mode = mode
         self.net = kern_net
         self.ks = kernel_sz
-        self.kernel = nn.Parameter(torch.rand(params_k - kernel_sz[0]))
+        self.kernel = nn.Parameter(torch.randn(params_k - kernel_sz[0]))
 
         self.mask = torch.ones(tuple(self.ks), dtype=torch.bool)
         hpad, wpad = self.ks[1:] - 1
@@ -103,7 +103,9 @@ class InvConv(Transform):
         b,c,h,w = x.shape
         z = torch.zeros_like(x)
 
+        print("C",context.isnan().sum())
         weights = self.conv_kern(self.net(self.kernel, context))
+        print("W",weights.isnan().sum())
         weights = torch.nan_to_num(weights)
         x_p = self.triang_pad(x)
         _,_,hp,wp = x_p.shape
@@ -231,8 +233,12 @@ class AffineCoupling(Transform):
     def forward(self, x, context):
         # context contains x prev and y
         log_s, t = self.st_net(context)
+        print("LS",log_s.isnan().sum())
+
         log_s = torch.nan_to_num(log_s)
         t = torch.nan_to_num(t)
+        print("T",log_s.isnan().sum())
+
         z = (x + t) * log_s.exp()
         ladj = log_s.sum((1, 2, 3))
         print("AC", z.isnan().sum())
