@@ -70,6 +70,7 @@ class EmbedObs(nn.Module):
                 exit()
 
             y_emb = self.upsample(y_emb)
+            y_emb = torch.nan_to_num(y_emb)
             if y_emb.isnan().sum():
                 print("UP")
                 exit()
