@@ -104,6 +104,7 @@ class InvConv(Transform):
         z = torch.zeros_like(x)
 
         weights = self.conv_kern(self.net(self.kernel, context))
+        weights = torch.nan_to_num(weights)
         x_p = self.triang_pad(x)
         _,_,hp,wp = x_p.shape
         z = nn.functional.conv2d(x_p.view(1,b*c,hp,wp), weights.view((b*c,1,) + weights.shape[-2:]), groups = b*c)
@@ -119,6 +120,7 @@ class InvConv(Transform):
         x = torch.zeros_like(z)
 
         weights = self.conv_kern(self.net(self.kernel, context))
+        weights = torch.nan_to_num(weights)
         c_mat = self.fc_from_conv(weights.view(b*c,weights.shape[-2], weights.shape[-1]), z.view(b*c,h,w))
         x = z#.permute((0, 2, 3, 1))
         x = x.reshape((b* c , h * w))
