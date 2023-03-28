@@ -80,7 +80,7 @@ class EmbedObs(nn.Module):
         y_emb = self.head(y_emb)
         print("END", y_emb.isnan().sum())
         print("t", t_emb.isnan().sum())
-        
+        exit()
         return torch.cat((y_emb, t_emb), dim=1)
 
 
