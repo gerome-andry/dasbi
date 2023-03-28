@@ -27,7 +27,8 @@ class ActNorm(Transform):
         z = (x - self.mu) / self.log_sig.exp()
         batch_size = x.shape[0]
         ladj = (-self.log_sig).sum() * z.new_ones(batch_size)
-        print("AN", ladj.isnan().sum())
+        print("AN", z.isnan().sum())
+
         return z, ladj
 
     def inverse(self, z, context=None):
@@ -109,6 +110,7 @@ class InvConv(Transform):
         z = z.reshape((b,c,h,w))
 
         ladj = z.new_zeros(b)
+        print("IC", z.isnan().sum())
 
         return z, ladj
 
@@ -186,6 +188,7 @@ class SpatialSplit(Transform):
 
         z = torch.cat((z1, z2, z3, z4), dim=1)
         ladj = x.new_zeros(b)
+        print("SS", z.isnan().sum())
 
         return z, ladj
 
@@ -229,7 +232,8 @@ class AffineCoupling(Transform):
         log_s = torch.nan_to_num(log_s)
         z = (x + t) * log_s.exp()
         ladj = log_s.sum((1, 2, 3))
-        print("AC", ladj.isnan().sum())
+        print("AC", z.isnan().sum())
+
         return z, ladj
 
     def inverse(self, z, context):
@@ -261,6 +265,8 @@ class QuadCoupling(Transform):
             z = torch.cat((z, z_i), 1)
             ladj += ladj_i
             it += 1
+
+        print("QC", z.isnan().sum())
 
         return z, ladj
 
