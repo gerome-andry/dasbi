@@ -232,6 +232,7 @@ class AffineCoupling(Transform):
         # context contains x prev and y
         log_s, t = self.st_net(context)
         log_s = torch.nan_to_num(log_s)
+        t = torch.nan_to_num(t)
         z = (x + t) * log_s.exp()
         ladj = log_s.sum((1, 2, 3))
         print("AC", z.isnan().sum())
@@ -241,6 +242,7 @@ class AffineCoupling(Transform):
     def inverse(self, z, context):
         log_s, t = self.st_net(context)
         log_s = torch.nan_to_num(log_s)
+        t = torch.nan_to_num(t)
         x = z / (log_s.exp()) - t
         ladj = None
 
