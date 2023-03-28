@@ -64,6 +64,7 @@ class EmbedObs(nn.Module):
             y_emb = y
             for e in self.extract:
                 y_emb = e(y_emb)
+            y_emb = torch.nan_to_num(y_emb)
             if y_emb.isnan().sum():
                 print("EXT")
                 exit()
