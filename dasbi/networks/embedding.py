@@ -55,17 +55,23 @@ class EmbedObs(nn.Module):
         return t
 
     def forward(self, y, t):
-        print("IN CTXT", y.isnan().sum())
+        if y.isnan().sum():
+            print("Y")
+            exit()
         t_emb = self.time_embed(t)
 
         if self.obs is None:
             y_emb = y
             for e in self.extract:
                 y_emb = e(y_emb)
-            print("EXT", y_emb.isnan().sum())
+            if y_emb.isnan().sum():
+                print("EXT")
+                exit()
 
             y_emb = self.upsample(y_emb)
-            print("UP", y_emb.isnan().sum())
+            if y_emb.isnan().sum():
+                print("UP")
+                exit()
 
         else:
             mask = self.obs[None,None,...].expand(y.shape[0], y.shape[1], -1, -1)
@@ -78,9 +84,13 @@ class EmbedObs(nn.Module):
             y_emb = self.recombine(y_emb)
 
         y_emb = self.head(y_emb)
-        print("END", y_emb.isnan().sum())
-        print("t", t_emb.isnan().sum())
-        exit()
+        if y_emb.isnan().sum():
+            print("END")
+            exit()
+        
+        if t_emb.isnan().sum():
+            print("t")
+            exit()
         return torch.cat((y_emb, t_emb), dim=1)
 
 

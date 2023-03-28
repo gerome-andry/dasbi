@@ -27,7 +27,7 @@ class ActNorm(Transform):
         z = (x - self.mu) / self.log_sig.exp()
         batch_size = x.shape[0]
         ladj = (-self.log_sig).sum() * z.new_ones(batch_size)
-        print("AN", z.isnan().sum())
+        # print("AN", z.isnan().sum())
 
         return z, ladj
 
@@ -103,9 +103,9 @@ class InvConv(Transform):
         b,c,h,w = x.shape
         z = torch.zeros_like(x)
 
-        print("C",context.isnan().sum())
+        # print("C",context.isnan().sum())
         weights = self.conv_kern(self.net(self.kernel, context))
-        print("W",weights.isnan().sum())
+        # print("W",weights.isnan().sum())
         weights = torch.nan_to_num(weights)
         x_p = self.triang_pad(x)
         _,_,hp,wp = x_p.shape
@@ -113,7 +113,7 @@ class InvConv(Transform):
         z = z.reshape((b,c,h,w))
 
         ladj = z.new_zeros(b)
-        print("IC", z.isnan().sum())
+        # print("IC", z.isnan().sum())
 
         return z, ladj
 
@@ -192,7 +192,7 @@ class SpatialSplit(Transform):
 
         z = torch.cat((z1, z2, z3, z4), dim=1)
         ladj = x.new_zeros(b)
-        print("SS", z.isnan().sum())
+        # print("SS", z.isnan().sum())
 
         return z, ladj
 
@@ -233,15 +233,15 @@ class AffineCoupling(Transform):
     def forward(self, x, context):
         # context contains x prev and y
         log_s, t = self.st_net(context)
-        print("LS",log_s.isnan().sum())
+        # print("LS",log_s.isnan().sum())
 
         log_s = torch.nan_to_num(log_s)
         t = torch.nan_to_num(t)
-        print("T",log_s.isnan().sum())
+        # print("T",log_s.isnan().sum())
 
         z = (x + t) * log_s.exp()
         ladj = log_s.sum((1, 2, 3))
-        print("AC", z.isnan().sum())
+        # print("AC", z.isnan().sum())
 
         return z, ladj
 
@@ -276,7 +276,7 @@ class QuadCoupling(Transform):
             ladj += ladj_i
             it += 1
 
-        print("QC", z.isnan().sum())
+        # print("QC", z.isnan().sum())
 
         return z, ladj
 
