@@ -26,7 +26,6 @@ class ActNorm(Transform):
 
         z = (x - self.mu) / self.log_sig.exp()
         batch_size = x.shape[0]
-        print('AC', torch.isnan(self.log_sig).sum())
         ladj = (-self.log_sig).sum() * z.new_ones(batch_size)
 
         return z, ladj
@@ -227,8 +226,8 @@ class AffineCoupling(Transform):
     def forward(self, x, context):
         # context contains x prev and y
         log_s, t = self.st_net(context)
+        log_s = torch.nan_to_num(log_s)
         z = (x + t) * log_s.exp()
-        print('QC', torch.isnan(log_s).sum())
         ladj = log_s.sum((1, 2, 3))
 
         return z, ladj
