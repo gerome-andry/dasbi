@@ -234,6 +234,9 @@ class AffineCoupling(Transform):
 
     def inverse(self, z, context):
         log_s, t = self.st_net(context)
+        log_s = torch.nan_to_num(log_s)
+        if (log_s == -torch.inf).sum():
+            print("Error")
         x = z / (log_s.exp()) - t
         ladj = None
 
