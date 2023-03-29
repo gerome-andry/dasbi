@@ -15,7 +15,7 @@ class ConvCoup(nn.Module):
             [nn.Conv2d(chan + input_chan, chan, 1) for _ in range(lay)]
         )
         self.tail = nn.Conv2d(chan + input_chan, output_chan, ks, padding=(ks - 1) // 2)
-        self.act = nn.ReLU()
+        self.act = nn.ELU()
 
     def forward(self, x):
         x_skip = x
@@ -38,7 +38,7 @@ class ConvEmb(nn.Module):
         self.conv1 = nn.Conv2d(input_dim[1], input_dim[1] * 4, tuple(ks), stride = tuple(strides))
         self.apool_in = nn.AvgPool2d(tuple(ks), stride=tuple(strides))
         self.conv2 = nn.Conv2d(input_dim[1] * 5, 1, (1, 1))
-        self.act = nn.ReLU()
+        self.act = nn.ELU()
 
         self.lin = nn.Linear(torch.prod((input_dim[-2:] - ks)//strides + 1), output_lg)
 

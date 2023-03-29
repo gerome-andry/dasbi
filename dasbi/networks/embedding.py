@@ -9,6 +9,7 @@ class EmbedObs(nn.Module):
         self.y_shape = tuple(in_shape)
         h, w = out_shape[-2:]
         self.obs = observer_mask
+        self.act = nn.ELU()
         self.register_buffer(
             "freq",
             torch.cat([torch.arange(i, i + h // 2) for i in range(1, w + 1)])
@@ -82,10 +83,12 @@ class EmbedObs(nn.Module):
             y_emb = torch.cat((y_emb, mask[:,:1,...]), dim = 1) 
             for e in self.extract:
                 y_emb = e(y_emb)
+                y_emb = self.act(y_emb)
 
             y_emb = self.recombine(y_emb)
 
         y_emb = self.head(y_emb)
+        y_emb = self.act(y_emb)
         if y_emb.isnan().sum():
             print("END")
             exit()

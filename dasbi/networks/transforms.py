@@ -9,6 +9,27 @@ class Transform(nn.Module):
     def inverse(self, z, context=None):
         raise NotImplementedError()
 
+class BijELU(Transform):
+    def __init__(self, alpha = 2):
+        super().__init__()
+        self.a = torch.tensor(alpha) 
+
+    def forward(self, x):
+        z = x
+        ladj = torch.zeros_like(z)
+        ladj[z < 0] = z[z<0]*self.a.log()
+        print(ladj)
+        z[z<0] = self.a*(z[z<0].exp() - 1)
+        ladj = ladj.sum((1,2,3))
+
+        return z, ladj 
+    
+    def inverse(self, z):
+        x = z                            
+        x[x<0] = (x[x<0]/self.a + 1).log()
+        ladj = None 
+
+        return x, ladj
 
 class ActNorm(Transform):
     # Take a look at conditioning ?
@@ -52,6 +73,7 @@ class InvConv(Transform):
         self.net = kern_net
         self.ks = kernel_sz
         self.kernel = nn.Parameter(torch.randn(params_k - kernel_sz[0]))
+        self.act = BijELU()
 
         self.mask = torch.ones(tuple(self.ks), dtype=torch.bool)
         hpad, wpad = self.ks[1:] - 1
@@ -113,6 +135,8 @@ class InvConv(Transform):
         z = z.reshape((b,c,h,w))
 
         ladj = z.new_zeros(b)
+        z,ladj_i = self.act(z)
+        ladj += ladj_i
         # print("IC", z.isnan().sum())
 
         return z, ladj
@@ -324,6 +348,14 @@ if __name__ == "__main__":
     # print(z)
     # x, _ = ss.inverse(z)
     # print(x)
+    be = BijELU()
+    x = torch.randn((2,1,3,3))*3
+    print(x)
+    z,l = be(x)
+    print(z,l)
+    x,_ = be.inverse(z)
+    print(x)
+    exit()
     class ConvEmb(nn.Module):
         def __init__(self, input_dim, output_lg):
             super().__init__()
