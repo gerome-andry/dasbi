@@ -48,7 +48,6 @@ class ActNorm(Transform):
         z = (x - self.mu) / self.log_sig.exp()
         batch_size = x.shape[0]
         ladj = (-self.log_sig).sum() * z.new_ones(batch_size)
-        # print("AN", z.isnan().sum())
 
         return z, ladj
 
@@ -125,10 +124,7 @@ class InvConv(Transform):
         b,c,h,w = x.shape
         z = torch.zeros_like(x)
 
-        # print("C",context.isnan().sum())
         weights = self.conv_kern(self.net(self.kernel, context))
-        # print("W",weights.isnan().sum())
-        weights = torch.nan_to_num(weights)
         x_p = self.triang_pad(x)
         _,_,hp,wp = x_p.shape
         z = nn.functional.conv2d(x_p.view(1,b*c,hp,wp), weights.view((b*c,1,) + weights.shape[-2:]), groups = b*c)
@@ -137,7 +133,6 @@ class InvConv(Transform):
         ladj = z.new_zeros(b)
         z,ladj_i = self.act(z)
         ladj += ladj_i
-        # print("IC", z.isnan().sum())
 
         return z, ladj
 
@@ -146,7 +141,6 @@ class InvConv(Transform):
         x = torch.zeros_like(z)
 
         weights = self.conv_kern(self.net(self.kernel, context))
-        weights = torch.nan_to_num(weights)
         c_mat = self.fc_from_conv(weights.view(b*c,weights.shape[-2], weights.shape[-1]), z.view(b*c,h,w))
         x = z#.permute((0, 2, 3, 1))
         x = x.reshape((b* c , h * w))
@@ -216,7 +210,6 @@ class SpatialSplit(Transform):
 
         z = torch.cat((z1, z2, z3, z4), dim=1)
         ladj = x.new_zeros(b)
-        # print("SS", z.isnan().sum())
 
         return z, ladj
 
@@ -257,22 +250,14 @@ class AffineCoupling(Transform):
     def forward(self, x, context):
         # context contains x prev and y
         log_s, t = self.st_net(context)
-        # print("LS",log_s.isnan().sum())
-
-        log_s = torch.nan_to_num(log_s)
-        t = torch.nan_to_num(t)
-        # print("T",log_s.isnan().sum())
 
         z = (x + t) * log_s.exp()
         ladj = log_s.sum((1, 2, 3))
-        # print("AC", z.isnan().sum())
 
         return z, ladj
 
     def inverse(self, z, context):
         log_s, t = self.st_net(context)
-        log_s = torch.nan_to_num(log_s)
-        t = torch.nan_to_num(t)
         x = z / (log_s.exp()) - t
         ladj = None
 
@@ -299,8 +284,6 @@ class QuadCoupling(Transform):
             z = torch.cat((z, z_i), 1)
             ladj += ladj_i
             it += 1
-
-        # print("QC", z.isnan().sum())
 
         return z, ladj
 

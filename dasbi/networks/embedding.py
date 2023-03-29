@@ -56,25 +56,14 @@ class EmbedObs(nn.Module):
         return t
 
     def forward(self, y, t):
-        if y.isnan().sum():
-            print("Y")
-            exit()
         t_emb = self.time_embed(t)
 
         if self.obs is None:
             y_emb = y
             for e in self.extract:
                 y_emb = e(y_emb)
-            y_emb = torch.nan_to_num(y_emb)
-            if y_emb.isnan().sum():
-                print("EXT")
-                exit()
 
             y_emb = self.upsample(y_emb)
-            y_emb = torch.nan_to_num(y_emb)
-            if y_emb.isnan().sum():
-                print("UP")
-                exit()
 
         else:
             mask = self.obs[None,None,...].expand(y.shape[0], y.shape[1], -1, -1)
@@ -89,13 +78,7 @@ class EmbedObs(nn.Module):
 
         y_emb = self.head(y_emb)
         y_emb = self.act(y_emb)
-        if y_emb.isnan().sum():
-            print("END")
-            exit()
         
-        if t_emb.isnan().sum():
-            print("t")
-            exit()
         return torch.cat((y_emb, t_emb), dim=1)
 
 
