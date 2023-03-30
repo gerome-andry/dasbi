@@ -36,7 +36,7 @@ class ConvEmb(nn.Module):
         ks = torch.clamp(input_dim[-2:] // 3, 1)
         strides = torch.clamp((input_dim[-2:] - ks)//7, 1)
         self.conv1 = nn.Conv2d(input_dim[1], input_dim[1] * 4, tuple(ks), stride = tuple(strides))
-        self.cpool_in = nn.Conv2d(tuple(ks), stride=tuple(strides))
+        self.cpool_in = nn.Conv2d(input_dim[1] * 4, input_dim[1] * 4, tuple(ks), stride=tuple(strides))
         self.conv2 = nn.Conv2d(input_dim[1] * 5, 1, (1, 1))
         self.act = nn.ELU()
 
