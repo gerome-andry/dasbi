@@ -26,18 +26,18 @@ class EmbedObs(nn.Module):
 
         # assumption obs have smaller size than x
         if self.obs is None:
-            self.upsample = nn.ConvTranspose2d(
-                4 * conv_lay,
-                32,
-                (
-                    self.x_shape[-2] - self.y_shape[-2] + 1,
-                    self.x_shape[-1] - self.y_shape[-1] + 1,
-                ),
-            )
-        else:
-            self.recombine = nn.Conv2d(4*conv_lay, 32, 1)
+            # self.upsample = nn.ConvTranspose2d(
+            #     4 * conv_lay,
+            #     32,
+            #     (
+            #         self.x_shape[-2] - self.y_shape[-2] + 1,
+            #         self.x_shape[-1] - self.y_shape[-1] + 1,
+            #     ),
+            # )
+            self.upsample = nn.Upsample(tuple(self.x_shape[-2:]))
 
-        self.head = nn.Conv2d(32, self.x_shape[1] - 1, 1)
+        self.mix_up = nn.ModuleList([nn.Conv2d(4*conv_lay, 32, 1), nn.Conv2d(32, 16, 3, padding = 1)])
+        self.head = nn.Conv2d(16, self.x_shape[1] - 1, 1)
 
     def time_embed(self, t):
         # extend to multiple times
@@ -60,21 +60,22 @@ class EmbedObs(nn.Module):
 
         if self.obs is None:
             y_emb = y
-            for e in self.extract:
-                y_emb = e(y_emb)
-
-            y_emb = self.upsample(y_emb)
-
         else:
             mask = self.obs[None,None,...].expand(y.shape[0], y.shape[1], -1, -1)
             y_emb = torch.zeros_like(mask)
             y_emb[mask == 1] = y.flatten()
             y_emb = torch.cat((y_emb, mask[:,:1,...]), dim = 1) 
-            for e in self.extract:
-                y_emb = e(y_emb)
-                y_emb = self.act(y_emb)
 
-            y_emb = self.recombine(y_emb)
+        for e in self.extract:
+            y_emb = e(y_emb)
+            y_emb = self.act(y_emb)
+            
+        if self.obs is None:
+            y_emb = self.upsample(y_emb)
+        
+        for mu in self.mix_up:
+            y_emb = mu(y_emb)
+            y_emb = self.act(y_emb)
 
         y_emb = self.head(y_emb)
         y_emb = self.act(y_emb)

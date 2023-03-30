@@ -35,8 +35,8 @@ lN = len(N_grid)
 window = 10
 CONFIG = {
     # Architecture
-    "embedding": [3]*lN,
-    "hf": [[2*int(np.sqrt(k)), ]*2 for k in N_grid],
+    "embedding": [4]*lN,
+    "hf": [[4*int(np.sqrt(k)), ]*2 for k in N_grid],
     "tf": [2 + k//256 for k in N_grid],
     # Training
     "epochs": [512]*lN,
@@ -55,7 +55,7 @@ CONFIG = {
     # Test with assimilation window
     "x_dim": [(1, 1, sp, 1) for sp in N_grid],
     "y_dim": [(1, window, spy, 1) for spy in Y_grid],
-    "y_dim_emb": [(1, 3, sp, 1) for sp in N_grid],
+    "y_dim_emb": [(1, 5, sp, 1) for sp in N_grid],
     "observer_fp": [f"experiments/observer{N}LZ.pickle" for N in N_grid],
 }
 
