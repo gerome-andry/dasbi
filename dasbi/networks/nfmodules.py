@@ -191,10 +191,9 @@ class ConvStep(Transform):
         c = z.shape[1]
         for c_ls in self.conv_mod:
             for i, mc in enumerate(c_ls[:-1]):
-                for j in range(c // 4):
-                    z_c, ladj_i = mc(z[:, i * c // 4 + j, ...].unsqueeze(1), context)
-                    z[:, i * c // 4 + j, ...] = z_c.squeeze(1)
-                    ladj += ladj_i
+                z_c, ladj_i = mc(z[:, i * c // 4 : (i+1) * c // 4, ...], context)
+                z[:, i * c // 4 : (i+1) * c // 4, ...] = z_c
+                ladj += ladj_i
 
             z, ladj_i = c_ls[-1](z)
             ladj += ladj_i
@@ -215,9 +214,8 @@ class ConvStep(Transform):
             for i, mc in enumerate(
                 c_ls[:-1]
             ):  # not reverse to keep the same padding order
-                for j in range(c // 4):
-                    x_c, _ = mc.inverse(x[:, i * c // 4 + j, ...].unsqueeze(1), context)
-                    x[:, i * c // 4 + j, ...] = x_c.squeeze(1)
+                x_c, _ = mc.inverse(x[:, i * c // 4 : (i+1) * c // 4, ...], context)
+                x[:, i * c // 4 : (i+1) * c // 4, ...] = x_c
 
         for m in reversed(self.mod):
             x, _ = m.inverse(x)
