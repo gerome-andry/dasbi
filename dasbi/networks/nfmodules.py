@@ -15,7 +15,7 @@ class ConvCoup(nn.Module):
             [nn.Conv2d(chan + input_chan, chan, 1) for _ in range(lay)]
         )
         self.tail = nn.Conv2d(chan + input_chan, output_chan, ks, padding=(ks - 1) // 2)
-        self.act = nn.ELU()
+        self.act = nn.ReLU()
 
     def forward(self, x):
         x_skip = x
@@ -36,16 +36,16 @@ class ConvEmb(nn.Module):
         ks = torch.clamp(input_dim[-2:] // 3, 1)
         strides = torch.clamp((input_dim[-2:] - ks)//7, 1)
         self.conv1 = nn.Conv2d(input_dim[1], input_dim[1] * 4, tuple(ks), stride = tuple(strides))
-        self.cpool_in = nn.Conv2d(input_dim[1] * 4, input_dim[1] * 4, tuple(ks), stride=tuple(strides))
+        self.apool_in = nn.AvgPool2d(tuple(ks), stride=tuple(strides))
         self.conv2 = nn.Conv2d(input_dim[1] * 5, 1, (1, 1))
-        self.act = nn.ELU()
+        self.act = nn.ReLU()
 
         self.lin = nn.Linear(torch.prod((input_dim[-2:] - ks)//strides + 1), output_lg)
 
     def forward(self, x, y):
         emb_y = self.conv1(y)
         emb_y = self.act(emb_y)
-        emb_y = torch.cat((self.cpool_in(y), emb_y), dim=1)
+        emb_y = torch.cat((self.apool_in(y), emb_y), dim=1)
         emb_y = self.conv2(emb_y)
         emb_y = self.act(emb_y).flatten(start_dim = 1)
         out = self.lin(emb_y) + x
@@ -191,9 +191,10 @@ class ConvStep(Transform):
         c = z.shape[1]
         for c_ls in self.conv_mod:
             for i, mc in enumerate(c_ls[:-1]):
-                z_c, ladj_i = mc(z[:, i * c // 4 :(i+1) * c // 4, ...], context)
-                z[:, i * c // 4 :(i+1) * c // 4, ...] = z_c
-                ladj += ladj_i
+                for j in range(c // 4):
+                    z_c, ladj_i = mc(z[:, i * c // 4 + j, ...].unsqueeze(1), context)
+                    z[:, i * c // 4 + j, ...] = z_c.squeeze(1)
+                    ladj += ladj_i
 
             z, ladj_i = c_ls[-1](z)
             ladj += ladj_i
