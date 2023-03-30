@@ -18,7 +18,6 @@ class BijELU(Transform):
         z = x
         ladj = torch.zeros_like(z)
         ladj[z < 0] = z[z<0]*self.a.log()
-        print(ladj)
         z[z<0] = self.a*(z[z<0].exp() - 1)
         ladj = ladj.sum((1,2,3))
 
@@ -63,7 +62,7 @@ class ActNorm(Transform):
 class InvConv(Transform):
     # fix multiple channels ???
 
-    def __init__(self, kernel_sz, kern_net, mode="UL"):
+    def __init__(self, kernel_sz, kern_net, mode="UL", act = False):
         params_k = torch.prod(kernel_sz)
         assert params_k > 1, "Too small kernel, must contain more than 1 element"
         super().__init__()
@@ -72,7 +71,10 @@ class InvConv(Transform):
         self.net = kern_net
         self.ks = kernel_sz
         self.kernel = nn.Parameter(torch.randn(params_k - kernel_sz[0]))
-        self.act = BijELU()
+        self.activated = act
+        if act:
+            self.act = BijELU()
+            self.activated = True
 
         self.mask = torch.ones(tuple(self.ks), dtype=torch.bool)
         hpad, wpad = self.ks[1:] - 1
@@ -131,8 +133,9 @@ class InvConv(Transform):
         z = z.reshape((b,c,h,w))
 
         ladj = z.new_zeros(b)
-        z,ladj_i = self.act(z)
-        ladj += ladj_i
+        if self.activated:
+            z,ladj_i = self.act(z)
+            ladj += ladj_i
 
         return z, ladj
 
@@ -140,6 +143,9 @@ class InvConv(Transform):
         b, c, h, w = z.shape
         x = torch.zeros_like(z)
 
+        if self.activated:
+            x,_ = self.act.inverse(z)
+            
         weights = self.conv_kern(self.net(self.kernel, context))
         c_mat = self.fc_from_conv(weights.view(b*c,weights.shape[-2], weights.shape[-1]), z.view(b*c,h,w))
         x = z#.permute((0, 2, 3, 1))
