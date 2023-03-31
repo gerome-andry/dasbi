@@ -91,10 +91,10 @@ def process_sim(simulator):
     simulator.time = (simulator.time - MUT) / SIGMAT
 
 
-@job(array=lN, cpus=2, gpus=1, ram="32GB", time="20:00:00")
+@job(array=9*lN, cpus=2, gpus=1, ram="32GB", time="10:00:00")
 def train(i: int):
     # config = {key: random.choice(values) for key, values in CONFIG.items()}
-    config = {key : values[i] for key,values in CONFIG.items()}
+    config = {key : values[i%lN] for key,values in CONFIG.items()}
 
     with open(config["observer_fp"], "rb") as handle:
         observer = pickle.load(handle)
