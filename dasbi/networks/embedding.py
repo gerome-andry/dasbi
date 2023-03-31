@@ -72,7 +72,8 @@ class EmbedObs(nn.Module):
             
         if self.obs is None:
             y_emb = self.upsample(y_emb)
-        
+            y_emb = self.act(y_emb)
+            
         for mu in self.mix_up:
             y_emb = mu(y_emb)
             y_emb = self.act(y_emb)
