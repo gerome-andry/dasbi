@@ -57,6 +57,12 @@ class EmbedObs(nn.Module):
 
     def forward(self, y, t):
         t_emb = self.time_embed(t)
+        if t_emb.isnan().sum():
+            print('T')
+            exit()
+        if y.isnan().sum():
+            print('Y')
+            exit()
 
         if self.obs is None:
             y_emb = y
@@ -69,18 +75,26 @@ class EmbedObs(nn.Module):
         for e in self.extract:
             y_emb = e(y_emb)
             y_emb = self.act(y_emb)
-            
+        if y_emb.isnan().sum():
+            print('EXT')
+            exit()
         if self.obs is None:
             y_emb = self.upsample(y_emb)
             y_emb = self.act(y_emb)
-            
+        if y_emb.isnan().sum():
+            print('UP')
+            exit()
         for mu in self.mix_up:
             y_emb = mu(y_emb)
             y_emb = self.act(y_emb)
-
+        if y_emb.isnan().sum():
+            print('MU')
+            exit()
         y_emb = self.head(y_emb)
         y_emb = self.act(y_emb)
-        
+        if y_emb.isnan().sum():
+            print('HEAD')
+            exit()
         return torch.cat((y_emb, t_emb), dim=1)
 
 
