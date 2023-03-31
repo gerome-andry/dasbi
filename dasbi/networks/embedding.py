@@ -57,12 +57,12 @@ class EmbedObs(nn.Module):
 
     def forward(self, y, t):
         t_emb = self.time_embed(t)
-        if t_emb.isnan().sum():
-            print('T')
-            exit()
-        if y.isnan().sum():
-            print('Y')
-            exit()
+        # if t_emb.isnan().sum():
+        #     print('T')
+        #     exit()
+        # if y.isnan().sum():
+        #     print('Y')
+        #     exit()
 
         if self.obs is None:
             y_emb = y
@@ -73,30 +73,30 @@ class EmbedObs(nn.Module):
             y_emb = torch.cat((y_emb, mask[:,:1,...]), dim = 1) 
 
         for e in self.extract:
-            print(y_emb.isnan().sum(), y_emb.min(), y_emb.max(), y_emb.numel(), y_emb.shape)
+            # print(y_emb.isnan().sum(), y_emb.min(), y_emb.max(), y_emb.numel(), y_emb.shape)
             y_emb = e(y_emb)
             y_emb = self.act(y_emb)
 
-        if y_emb.isnan().sum():
-            print('EXT')
-            exit()
+        # if y_emb.isnan().sum():
+        #     print('EXT')
+        #     exit()
         if self.obs is None:
             y_emb = self.upsample(y_emb)
             y_emb = self.act(y_emb)
-        if y_emb.isnan().sum():
-            print('UP')
-            exit()
+        # if y_emb.isnan().sum():
+        #     print('UP')
+        #     exit()
         for mu in self.mix_up:
             y_emb = mu(y_emb)
             y_emb = self.act(y_emb)
-        if y_emb.isnan().sum():
-            print('MU')
-            exit()
+        # if y_emb.isnan().sum():
+        #     print('MU')
+        #     exit()
         y_emb = self.head(y_emb)
         y_emb = self.act(y_emb)
-        if y_emb.isnan().sum():
-            print('HEAD')
-            exit()
+        # if y_emb.isnan().sum():
+        #     print('HEAD')
+        #     exit()
         return torch.cat((y_emb, t_emb), dim=1)
 
 
