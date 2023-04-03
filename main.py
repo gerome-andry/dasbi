@@ -25,138 +25,137 @@ class myMOD(torch.nn.Module):
         self.flow = NSF
         self.emb = emb 
 
-for i in range(3,10):
-    N = 2**i
+# for i in range(3,10):
+#     N = 2**i
 # exit()
 
-# n_sim = 2**1
-# N = 512
-# directory = "AssimSmallLZ"
-# modelfname = f"experiments/{directory}/LZSmall10assim.pth"
-    observerfname = "observer512LZ.pickle"
+n_sim = 2**10
+N = 8
+directory = "test"
+modelfname = f"experiments/{directory}/test.pth"
+observerfname = "observer8LZ.pickle"
 
-# simulator = sim(N=N, noise=0.5)
-# observer = ObservatorStation2D((N, 1), (3, 1), (1, 1), (2, 0), (.8, 1))
-# with open(f"experiments/{observerfname}", "rb") as handle:
-#     observer = pickle.load(handle)
-# simulator.init_observer(observer)
+simulator = sim(N=N, noise=0.5)
+observer = ObservatorStation2D((N, 1), (3, 1), (1, 1), (2, 0), (.8, 1))
+with open(f"experiments/{observerfname}", "rb") as handle:
+    observer = pickle.load(handle)
+simulator.init_observer(observer)
 
 
 # with open('experiments/observer32LZ.pickle', 'wb') as handle:
 #     pickle.dump(observer, handle, protocol=pickle.HIGHEST_PROTOCOL)
 # observer.visualize()
 
-# tmax = 10
-# traj_len = tmax*10
-# times = torch.linspace(0, tmax, traj_len)
+tmax = 10
+traj_len = tmax*10
+times = torch.linspace(0, tmax, traj_len)
 
-# simulator.generate_steps(torch.randn((n_sim, N)), times)
+simulator.generate_steps(torch.randn((n_sim, N)), times)
+print(simulator.data.shape)
 
-# MUX = simulator.data.mean(dim=(0, 1))
-# SIGMAX = simulator.data.std(dim=(0, 1))
+MUX = simulator.data.mean(dim=(0, 1))
+SIGMAX = simulator.data.std(dim=(0, 1))
 
-# def preprocess_x(x):
-#     return (x - MUX) / SIGMAX
-
-
-# def postprocess_x(x):
-#     return x * SIGMAX + MUX
+def preprocess_x(x):
+    return (x - MUX) / SIGMAX
 
 
-# MUY = simulator.obs.mean(dim=(0, 1))
-# SIGMAY = simulator.obs.std(dim=(0, 1))
+def postprocess_x(x):
+    return x * SIGMAX + MUX
 
 
-# def preprocess_y(y):
-#     return (y - MUY) / SIGMAY
+MUY = simulator.obs.mean(dim=(0, 1))
+SIGMAY = simulator.obs.std(dim=(0, 1))
 
 
-# def postprocess_y(y):
-#     return y * SIGMAY + MUY
+def preprocess_y(y):
+    return (y - MUY) / SIGMAY
 
 
-# MUT = simulator.time.mean(dim=(0, 1))
-# SIGMAT = simulator.time.std(dim=(0, 1))
-
-# def preprocess_t(t):
-#     return (t - MUT) / SIGMAT
+def postprocess_y(y):
+    return y * SIGMAY + MUY
 
 
-# def postprocess_t(t):
-#     return t * SIGMAT + MUT
+MUT = simulator.time.mean(dim=(0, 1))
+SIGMAT = simulator.time.std(dim=(0, 1))
 
-# simulator.data = preprocess_x(simulator.data)
-# simulator.obs = preprocess_y(simulator.obs)
-# simulator.time = preprocess_t(simulator.time)
+def preprocess_t(t):
+    return (t - MUT) / SIGMAT
+
+
+def postprocess_t(t):
+    return t * SIGMAT + MUT
+
+simulator.data = preprocess_x(simulator.data)
+simulator.obs = preprocess_y(simulator.obs)
+simulator.time = preprocess_t(simulator.time)
 # simulator.display_sim(obs=True, delay = 10)
 
-# print(simulator.obs.isnan().sum())
-# start = 256
-# finish = 512
-# window = 10
-# # TRAIN A MODEL
-# simulator.data = simulator.data[:, start:finish]
-# simulator.obs = simulator.obs[:, start - window + 1 : finish]
-# simulator.time = simulator.time[:, start:finish]
+start = 256
+finish = 512
+window = 1
+# TRAIN A MODEL
+simulator.data = simulator.data[:, start:finish]
+simulator.obs = simulator.obs[:, start - window + 1 : finish]
+simulator.time = simulator.time[:, start:finish]
 
-# simulator.display_sim(obs=True, filename=f"experiments/{directory}/hovGT")
-# simulator.data = preprocess_x(simulator.data)
-# simulator.obs = preprocess_y(simulator.obs)
-# simulator.time = preprocess_t(simulator.time)
-    base = Unconditional(
-        DiagNormal,
-        torch.zeros(N),
-        torch.ones(N),
-        buffer=True,
-    )
+simulator.display_sim(obs=True, filename=f"experiments/{directory}/hovGT")
+simulator.data = preprocess_x(simulator.data)
+simulator.obs = preprocess_y(simulator.obs)
+simulator.time = preprocess_t(simulator.time)
+base = Unconditional(
+    DiagNormal,
+    torch.zeros(N),
+    torch.ones(N),
+    buffer=True,
+)
 
-    config = {
-        "embedding": 4,
-        "kernel_size": 2,
-        "ms_modules": 1 + N//256,
-        "num_conv": 2,
-        "N_ms": 2 + N//128,
-        # Training
-        "epochs": 256,
-        "batch_size": 64,
-        "step_per_batch": 64,
-        "optimizer": "AdamW",
-        "learning_rate": 3e-3,  # np.geomspace(1e-3, 1e-4).tolist(),
-        "weight_decay": 1e-4,  # np.geomspace(1e-2, 1e-4).tolist(),
-        "scheduler": "linear",  # , 'cosine', 'exponential'],
-        # Data
-        "points": N,
-        "noise": 0.5,
-        "train_sim": 2**10,
-        "val_sim": 2**8,
-        "device": "cpu",
-        # Test with assimilation window
-        "x_dim": (1, 1, N, 1),
-        "y_dim": (1, 10, N//4, 1),
-        "y_dim_emb": (1, 5, N, 1),
-        'obs_mask': False,
-        'roll': True,
-        'ar': False,
-        "observer_fp": f"experiments/{observerfname}",
-    }
+config = {
+    "embedding": 4,
+    "kernel_size": 2,
+    "ms_modules": 1 + N//256,
+    "num_conv": 2,
+    "N_ms": 2 + N//128,
+    # Training
+    "epochs": 256,
+    "batch_size": 64,
+    "step_per_batch": 64,
+    "optimizer": "AdamW",
+    "learning_rate": 3e-3,  # np.geomspace(1e-3, 1e-4).tolist(),
+    "weight_decay": 1e-4,  # np.geomspace(1e-2, 1e-4).tolist(),
+    "scheduler": "linear",  # , 'cosine', 'exponential'],
+    # Data
+    "points": N,
+    "noise": 0.5,
+    "train_sim": 2**10,
+    "val_sim": 2**8,
+    "device": "cpu",
+    # Test with assimilation window
+    "x_dim": (1, 1, N, 1),
+    "y_dim": (1, 10, N//4, 1),
+    "y_dim_emb": (1, 5, N, 1),
+    'obs_mask': False,
+    'roll': True,
+    'ar': False,
+    "observer_fp": f"experiments/{observerfname}",
+}
 
-    from math import sqrt
-    model = NPE(N, 5*N, build = NSF, passes = 2, hidden_features = [4*int(sqrt(N)),4*int(sqrt(N))], transforms = 2 + N//256)
-    emb_out = torch.tensor(config["y_dim_emb"])
-    emb = EmbedObs(
-        torch.tensor(config["y_dim"]),
-        emb_out,
-        conv_lay=config["embedding"],
-        observer_mask=None
-    )
-    model = myMOD(emb, model)
-    print('NSF:',sum(param.numel() for param in model.parameters()))
+# from math import sqrt
+# model = NPE(N, 5*N, build = NSF, passes = 2, hidden_features = [4*int(sqrt(N)),4*int(sqrt(N))], transforms = 2 + N//256)
+# emb_out = torch.tensor(config["y_dim_emb"])
+# emb = EmbedObs(
+#     torch.tensor(config["y_dim"]),
+#     emb_out,
+#     conv_lay=config["embedding"],
+#     observer_mask=None
+# )
+# model = myMOD(emb, model)
+# print('NSF:',sum(param.numel() for param in model.parameters()))
 
-    device = "cpu"
-    model = build(**config).to(device)
-    print('NPE:',sum(param.numel() for param in model.parameters()))
+device = "cpu"
+model = build(**config).to(device)
+print('NPE:',sum(param.numel() for param in model.parameters()))
 
-exit()
 with torch.no_grad():
     model(
         simulator.data[None, None, 0, 0, :, None].to(device),
