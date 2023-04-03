@@ -41,9 +41,9 @@ CONFIG = {
     "num_conv": [2]*lN,
     "N_ms": [2 + k//128 for k in N_grid],
     # Training
-    "epochs": [1024]*lN,
-    "batch_size": [256]*lN,
-    "step_per_batch": [128]*lN,
+    "epochs": [256]*lN,
+    "batch_size": [64]*lN,
+    "step_per_batch": [256]*lN,
     "optimizer": ["AdamW"]*lN,
     "learning_rate": [3e-3]*lN,  # np.geomspace(1e-3, 1e-4).tolist(),
     "weight_decay": [1e-4]*lN,  # np.geomspace(1e-2, 1e-4).tolist(),
@@ -117,7 +117,7 @@ def process_sim(simulator):
     simulator.time = (simulator.time - MUT) / SIGMAT
 
 
-@job(array=9*lN, cpus=2, gpus=1, ram="32GB", time="10:00:00")
+@job(array=lN, cpus=2, gpus=1, ram="32GB", time="10:00:00")
 def train(i: int):
     # config = {key: random.choice(values) for key, values in CONFIG.items()}
     config = {key : values[i%lN] for key,values in CONFIG.items()}
