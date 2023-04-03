@@ -59,6 +59,7 @@ class ConvNPE(nn.Module):
         if self.autoreg:
             y_t = torch.cat((y_t, x_ar), dim = 1)
 
+        z_test = z.clone()
         for mc in reversed(self.convmod):
             if self.roll:
                 if self.convmod[0].type == '1D':
@@ -69,7 +70,9 @@ class ConvNPE(nn.Module):
                     z = z.roll(shifts = (-dim[0]//4, -dim[1]//4), dims = (-2, -1))
 
             z, _ = mc.inverse(z, y_t)
-            
+        
+        x,_ = self(z,y,t)
+        print(torch.allclose(x,z_test))
         return z
 
     def sample(self, y, t, n, max_samp=None, x_ar = None):
