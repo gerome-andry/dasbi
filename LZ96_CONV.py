@@ -154,8 +154,8 @@ def train(i: int):
 
     # Training
     epochs = config["epochs"]
-    batch_size = config["batch_size"]*2**i
-    step_per_batch = config["step_per_batch"]
+    batch_size = config["batch_size"]
+    step_per_batch = config["step_per_batch"]*2**i
     best = 1000
 
     ## Optimizer
