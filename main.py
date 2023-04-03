@@ -91,8 +91,8 @@ simulator.obs = preprocess_y(simulator.obs)
 simulator.time = preprocess_t(simulator.time)
 # simulator.display_sim(obs=True, delay = 10)
 
-start = 256
-finish = 512
+start = 50
+finish = 100
 window = 1
 # TRAIN A MODEL
 simulator.data = simulator.data[:, start:finish]
@@ -132,7 +132,7 @@ config = {
     "device": "cpu",
     # Test with assimilation window
     "x_dim": (1, 1, N, 1),
-    "y_dim": (1, 10, N//4, 1),
+    "y_dim": (1, window, N//4, 1),
     "y_dim_emb": (1, 5, N, 1),
     'obs_mask': False,
     'roll': True,
@@ -188,16 +188,14 @@ if config['ar']:
     x_ar = x_ar[None, None, :, None].to(device)
 
 x_s = (
-    model.sample(y.to(device), t.to(device), 2**12, max_samp=2**8, x_ar = x_ar)
+    model.sample(y.to(device), t.to(device), 2**15, max_samp=2**8, x_ar = x_ar)
     .squeeze()
     .detach()
     .cpu()
 )
 
 from lampe.plots import corner, mark_point
-points = [0,1,2,
-          14,15,16,
-          29,30,31]
+points = [0,1,2,3,4,5,6,7]
 
 fig = corner(x_s[:, points], smooth=2, figsize=(6.8, 6.8), legend="q(x | y*)")
 fig = corner(simulator.data[:,window - 1,points], smooth = 2, legend="p(x)", figure = fig)
@@ -211,7 +209,7 @@ y_s = simulator.observe(x_s)
 fig = corner(y_s, smooth=2, figsize=(6.8, 6.8), legend="q(y | y*)")
 fig = corner(simulator.obs[:,window - 1], smooth = 2, legend="p(y)", figure = fig)
 
-y_star = y.squeeze()[-1] 
+y_star = y.squeeze()#[-1] 
 mark_point(fig, y_star)
 
 fig.savefig(f"experiments/{directory}/cornerNPEObs.pdf")
@@ -231,11 +229,11 @@ if config['ar']:
     x_ar = x_ar[:, None, :, None].to(device)
 
 # ASSIM :
-y = torch.cat(
-    [y[i : i + window].unsqueeze(0) for i, _ in enumerate(y[: -window + 1])], dim=0
-)
+# y = torch.cat(
+#     [y[i : i + window].unsqueeze(0) for i, _ in enumerate(y[: -window + 1])], dim=0
+# )
 # 1 STEP :
-# y = y.unsqueeze(1)
+y = y.unsqueeze(1)
 samp = model.sample(y.to(device), t.to(device), 16, max_samp=1, x_ar = x_ar).squeeze().detach().cpu()
 
 y_samp = simulator.observe(postprocess_x(samp)).mean((0))
