@@ -30,10 +30,10 @@ class myMOD(torch.nn.Module):
 # exit()
 
 n_sim = 2**10
-N = 16
+N = 32
 directory = "test"
 modelfname = f"experiments/{directory}/test.pth"
-observerfname = "observer16LZ.pickle"
+observerfname = "observer32LZ.pickle"
 
 simulator = sim(N=N, noise=0.5)
 observer = ObservatorStation2D((N, 1), (3, 1), (1, 1), (2, 0), (.8, 1))
@@ -93,7 +93,7 @@ simulator.time = preprocess_t(simulator.time)
 
 start = 50
 finish = 100
-window = 10
+window = 1
 # TRAIN A MODEL
 simulator.data = simulator.data[:, start:finish]
 simulator.obs = simulator.obs[:, start - window + 1 : finish]
@@ -209,7 +209,7 @@ y_s = simulator.observe(x_s)
 fig = corner(y_s, smooth=2, figsize=(6.8, 6.8), legend="q(y | y*)")
 fig = corner(simulator.obs[:,window - 1], smooth = 2, legend="p(y)", figure = fig)
 
-y_star = y.squeeze()[-1] 
+y_star = y.squeeze()#[-1] 
 mark_point(fig, y_star)
 
 fig.savefig(f"experiments/{directory}/cornerNPEObs.pdf")
@@ -229,11 +229,11 @@ if config['ar']:
     x_ar = x_ar[:, None, :, None].to(device)
 
 # ASSIM :
-y = torch.cat(
-    [y[i : i + window].unsqueeze(0) for i, _ in enumerate(y[: -window + 1])], dim=0
-)
+# y = torch.cat(
+#     [y[i : i + window].unsqueeze(0) for i, _ in enumerate(y[: -window + 1])], dim=0
+# )
 # 1 STEP :
-# y = y.unsqueeze(1)
+y = y.unsqueeze(1)
 samp = model.sample(y.to(device), t.to(device), 16, max_samp=1, x_ar = x_ar).squeeze().detach().cpu()
 
 y_samp = simulator.observe(postprocess_x(samp)).mean((0))
