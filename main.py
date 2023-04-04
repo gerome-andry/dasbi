@@ -86,9 +86,9 @@ def preprocess_t(t):
 def postprocess_t(t):
     return t * SIGMAT + MUT
 
-simulator.data = preprocess_x(simulator.data)
-simulator.obs = preprocess_y(simulator.obs)
-simulator.time = preprocess_t(simulator.time)
+# simulator.data = preprocess_x(simulator.data)
+# simulator.obs = preprocess_y(simulator.obs)
+# simulator.time = preprocess_t(simulator.time)
 # simulator.display_sim(obs=True, delay = 10)
 
 start = 50
