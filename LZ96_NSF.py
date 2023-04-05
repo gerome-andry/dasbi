@@ -25,7 +25,7 @@ from dasbi.networks.embedding import EmbedObs
 from dasbi.simulators.sim_lorenz96 import LZ96 as sim
 from dasbi.inference.models import NsfNPE
 
-SCRATCH = os.environ.get("SCRATCH", ".")
+SCRATCH = os.environ.get("HOME", ".")
 PATH = Path(SCRATCH) / "npe_nsf/lz96"
 PATH.mkdir(parents=True, exist_ok=True)
 

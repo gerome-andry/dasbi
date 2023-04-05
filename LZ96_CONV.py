@@ -25,11 +25,11 @@ from dasbi.networks.embedding import EmbedObs
 from dasbi.simulators.sim_lorenz96 import LZ96 as sim
 
 
-SCRATCH = os.environ.get("SCRATCH", ".")
+SCRATCH = os.environ.get("HOME", ".")
 PATH = Path(SCRATCH) / "npe_conv/lz96"
 PATH.mkdir(parents=True, exist_ok=True)
 
-N_grid = [8, 64, 128, 256, 512]#[2**i for i in range(3,10)]
+N_grid = [8, 128, 256, 512]#[2**i for i in range(3,10)]
 Y_grid = [int(np.ceil(x/4)) for x in N_grid]
 lN = len(N_grid)
 window = 1
@@ -125,7 +125,7 @@ def train(i: int):
     with open(config["observer_fp"], "rb") as handle:
         observer = pickle.load(handle)
 
-    run = wandb.init(project="dasbi", config=config, group="LZ96_scaling_assim")
+    run = wandb.init(project="dasbi", config=config, group="LZ96_scaling_step")
     runpath = PATH / f"runs/{run.name}_{run.id}"
     runpath.mkdir(parents=True, exist_ok=True)
 
