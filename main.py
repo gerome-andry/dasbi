@@ -46,7 +46,7 @@ simulator.init_observer(observer)
 #     pickle.dump(observer, handle, protocol=pickle.HIGHEST_PROTOCOL)
 # observer.visualize()
 
-tmax = 10
+tmax = 50
 traj_len = tmax*10
 times = torch.linspace(0, tmax, traj_len)
 
@@ -86,6 +86,10 @@ def preprocess_t(t):
 def postprocess_t(t):
     return t * SIGMAT + MUT
 
+print(MUX, MUY, MUT)
+print(SIGMAX, SIGMAY, SIGMAT)
+
+exit()
 # simulator.data = preprocess_x(simulator.data)
 # simulator.obs = preprocess_y(simulator.obs)
 # simulator.time = preprocess_t(simulator.time)

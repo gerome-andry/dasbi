@@ -29,7 +29,7 @@ SCRATCH = os.environ.get("HOME", ".")
 PATH = Path(SCRATCH) / "npe_nsf/lz96"
 PATH.mkdir(parents=True, exist_ok=True)
 
-N_grid = [64, 128, 256, 512]#[2**i for i in range(3,10)]
+N_grid = [2**i for i in range(3,10)]
 Y_grid = [int(np.ceil(x/4)) for x in N_grid]
 lN = len(N_grid)
 window = 1
@@ -107,8 +107,8 @@ def train(i: int):
     #     json.dump(config, f)
 
     # Data
-    tmax = 100
-    traj_len = tmax*10 
+    tmax = 50
+    traj_len = 1024 
     times = torch.linspace(0, tmax, traj_len)
 
     simt = sim(N=config["points"], noise=config["noise"])
