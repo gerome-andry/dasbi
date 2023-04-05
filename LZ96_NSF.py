@@ -29,7 +29,7 @@ SCRATCH = os.environ.get("SCRATCH", ".")
 PATH = Path(SCRATCH) / "npe_nsf/lz96"
 PATH.mkdir(parents=True, exist_ok=True)
 
-N_grid = [2**i for i in range(3,10)]
+N_grid = [64, 128, 256, 512]#[2**i for i in range(3,10)]
 Y_grid = [int(np.ceil(x/4)) for x in N_grid]
 lN = len(N_grid)
 window = 10
@@ -103,8 +103,8 @@ def train(i: int):
     runpath = PATH / f"runs/{run.name}_{run.id}"
     runpath.mkdir(parents=True, exist_ok=True)
 
-    with open(runpath / "config.json", "w") as f:
-        json.dump(config, f)
+    # with open(runpath / "config.json", "w") as f:
+    #     json.dump(config, f)
 
     # Data
     tmax = 100
