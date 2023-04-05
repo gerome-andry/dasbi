@@ -41,7 +41,7 @@ CONFIG = {
     # Training
     "epochs": [512]*lN,
     "batch_size": [64]*lN,
-    "step_per_batch": [64]*lN,
+    "step_per_batch": [512]*lN,
     "optimizer": ["AdamW"]*lN,
     "learning_rate": [3e-3]*lN,  # np.geomspace(1e-3, 1e-4).tolist(),
     "weight_decay": [1e-4]*lN,  # np.geomspace(1e-2, 1e-4).tolist(),
@@ -107,7 +107,7 @@ def train(i: int):
         json.dump(config, f)
 
     # Data
-    tmax = 10
+    tmax = 100
     traj_len = tmax*10 
     times = torch.linspace(0, tmax, traj_len)
 

@@ -29,7 +29,7 @@ SCRATCH = os.environ.get("SCRATCH", ".")
 PATH = Path(SCRATCH) / "npe_conv/lz96"
 PATH.mkdir(parents=True, exist_ok=True)
 
-N_grid = [2**i for i in range(3,9)]
+N_grid = [2**i for i in range(3,10)]
 Y_grid = [int(np.ceil(x/4)) for x in N_grid]
 lN = len(N_grid)
 window = 1
@@ -41,9 +41,9 @@ CONFIG = {
     "num_conv": [2]*lN,
     "N_ms": [2 + k//128 for k in N_grid],
     # Training
-    "epochs": [256]*lN,
+    "epochs": [512]*lN,
     "batch_size": [64]*lN,
-    "step_per_batch": [256]*lN,
+    "step_per_batch": [512]*lN,
     "optimizer": ["AdamW"]*lN,
     "learning_rate": [3e-3]*lN,  # np.geomspace(1e-3, 1e-4).tolist(),
     "weight_decay": [1e-4]*lN,  # np.geomspace(1e-2, 1e-4).tolist(),
@@ -133,7 +133,7 @@ def train(i: int):
         json.dump(config, f)
 
     # Data
-    tmax = 50
+    tmax = 100
     traj_len = tmax*10 
     times = torch.linspace(0, tmax, traj_len)
 
