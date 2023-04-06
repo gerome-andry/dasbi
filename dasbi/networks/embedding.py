@@ -18,7 +18,7 @@ class EmbedObs(nn.Module):
 
         self.extract = nn.ModuleList(
             [
-                nn.Conv2d(self.y_shape[1] if i == 0 else 4 * i, 4 * (i + 1), 3)
+                nn.Conv2d(self.y_shape[1] if i == 0 else 4 * i, 4 * (i + 1), 3, padding = 1)
                 for i in range(conv_lay)
             ]
         )
