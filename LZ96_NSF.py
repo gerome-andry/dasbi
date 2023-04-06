@@ -40,7 +40,7 @@ CONFIG = {
     "tf": [2 + k//256 for k in N_grid],
     # Training
     "epochs": [512]*lN,
-    "batch_size": [64]*lN,
+    "batch_size": [128]*lN,
     "step_per_batch": [512]*lN,
     "optimizer": ["AdamW"]*lN,
     "learning_rate": [3e-3]*lN,  # np.geomspace(1e-3, 1e-4).tolist(),
