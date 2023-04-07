@@ -18,16 +18,16 @@ class EmbedObs(nn.Module):
 
         self.extract = nn.ModuleList(
             [
-                nn.Conv2d(self.y_shape[1] if i == 0 else 4 * i, 4 * (i + 1), 3, padding = 1)
+                nn.Conv2d(self.y_shape[1] if i == 0 else 4 * i, 4 * (i + 1), 1)#, padding = 1)
                 for i in range(conv_lay)
             ]
         )
-        self.ln = nn.ModuleList(
-            [
-                nn.LayerNorm(self.y_shape[-2:])
-                for i in range(conv_lay)
-            ]
-        )
+        # self.ln = nn.ModuleList(
+        #     [
+        #         nn.LayerNorm(self.y_shape[-2:])
+        #         for i in range(conv_lay)
+        #     ]
+        # )
 
 
         # assumption obs have smaller size than x
@@ -78,9 +78,9 @@ class EmbedObs(nn.Module):
             y_emb[mask == 1] = y.flatten()
             y_emb = torch.cat((y_emb, mask[:,:1,...]), dim = 1) 
 
-        for l, e in zip(self.ln, self.extract):
+        for e in self.extract:
             # print(y_emb.isnan().sum(), y_emb.min(), y_emb.max(), y_emb.numel(), y_emb.shape)
-            y_emb = l(y_emb)
+            # y_emb = l(y_emb)
             y_emb = e(y_emb)
             y_emb = self.act(y_emb)
 

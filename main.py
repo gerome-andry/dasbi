@@ -46,7 +46,7 @@ simulator.init_observer(observer)
 #     pickle.dump(observer, handle, protocol=pickle.HIGHEST_PROTOCOL)
 # observer.visualize()
 
-tmax = 50
+tmax = 10
 traj_len = tmax*10
 times = torch.linspace(0, tmax, traj_len)
 
@@ -86,17 +86,13 @@ def preprocess_t(t):
 def postprocess_t(t):
     return t * SIGMAT + MUT
 
-print(MUX, MUY, MUT)
-print(SIGMAX, SIGMAY, SIGMAT)
-
-exit()
 # simulator.data = preprocess_x(simulator.data)
 # simulator.obs = preprocess_y(simulator.obs)
 # simulator.time = preprocess_t(simulator.time)
 # simulator.display_sim(obs=True, delay = 10)
 
 start = 50
-finish = 100
+finish = 55
 window = 10
 # TRAIN A MODEL
 simulator.data = simulator.data[:, start:finish]
@@ -178,9 +174,9 @@ print(f"Model has {size} trainable parameters")
 
 # EVALUATE CORNER PLOT
 x, y, t = (
-    simulator.data[0, window - 1],
+    simulator.data[0, 0],
     simulator.obs[0, :window],
-    simulator.time[0, window - 1],
+    simulator.time[0, 0],
 )
 
 x_ar = None
@@ -202,7 +198,7 @@ from lampe.plots import corner, mark_point
 points = [0,1,2,3,4,5,6,7]
 
 fig = corner(x_s[:, points], smooth=2, figsize=(6.8, 6.8), legend="q(x | y*)")
-fig = corner(simulator.data[:,window - 1,points], smooth = 2, legend="p(x)", figure = fig)
+fig = corner(simulator.data[:,0,points], smooth = 2, legend="p(x)", figure = fig)
 
 x_star = x.squeeze()[points]
 mark_point(fig, x_star)
