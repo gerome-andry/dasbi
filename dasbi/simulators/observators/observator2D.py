@@ -158,7 +158,7 @@ class ObservatorStation2D:
 if __name__ == "__main__":
     torch.manual_seed(42)
 
-    o = ObservatorStation2D((64, 1), (3, 3), (1, 1), (3, 3), (.75, .75))
+    o = ObservatorStation2D((512, 1), (3, 3), (1, 1), (3, 3), (.75, .75))
     A = o.get_Obs_mat()
     # print(A)
     import matplotlib.pyplot as plt
@@ -170,11 +170,11 @@ if __name__ == "__main__":
     plt.imshow(d)
     plt.show()
 
-    plt.imshow(exact - d)
+    plt.imshow(((exact - d)**2).sqrt())
     plt.show()
-    print((exact-d).sum())
-    print(exact.sum())
-    # o.visualize()
+    print((((exact - d))**2).sqrt().sum())
+    print(((exact)**2).sqrt().sum())
+    o.visualize()
     # print(o.get_mask())
     # idx = o.get_mask().flatten().nonzero()
     # A = torch.zeros((4,64))

@@ -39,11 +39,12 @@ class downUpLayer(nn.Module):
         self.ln = LayerNorm((-2, -1))
         
         if type(kernel_sz) is tuple:
-            k = kernel_sz[0]
+            p = ((kernel_sz[0] - 1)//2,1)
         else:
-            k = kernel_sz
+            p = (kernel_sz - 1)//2
+
         self.conv = nn.ModuleList([nn.Conv2d(input_c if i == 0 else output_c, output_c, 
-                                             kernel_sz, padding = (k - 1)//2) for i in range(n_c)])
+                                             kernel_sz, padding = p) for i in range(n_c)])
 
     def forward(self, x):
         x = self.ln(x)
@@ -75,7 +76,8 @@ class ScoreAttUNet(nn.Module):
                             for i in range(depth - 1)])
         self.down.extend([downUpLayer(nextLayC * spatial_scale ** i, spatial_scale, n_c = n_c, kernel_sz = ks)
                             for i in range(depth - 1)])
-        self.pool.extend([nn.Conv2d(nextLayC * spatial_scale ** i, nextLayC * spatial_scale ** i, 2, stride = 2)
+        c = ((2) if type == '2D' else (2,1))
+        self.pool.extend([nn.Conv2d(nextLayC * spatial_scale ** i, nextLayC * spatial_scale ** i, c, stride = c)
                             for i in range(depth - 1)])
         nextLayC = nextLayC * spatial_scale ** (depth-1)
     #UP & REDUCTION
