@@ -83,8 +83,8 @@ class SampleCheck(nn.Module):
         self.classify = nn.ModuleList([nn.Linear(hidden_fc, 2), nn.Softmax(dim = 1)])
 
     def forward(self, x, y, t):
-        sp_x = pos_embed(x.shape[-2:])[None, None, ...].expand(x.shape[0], -1, -1, -1)
-        sp_y = pos_embed(y.shape[-2:])[None, None, ...].expand(y.shape[0], -1, -1, -1)
+        sp_x = pos_embed(x.shape[-2:]).expand(x.shape[0], -1, -1, -1)
+        sp_y = pos_embed(y.shape[-2:]).expand(y.shape[0], -1, -1, -1)
         t_x = time_embed(t, x.shape[-2:])
         t_y = time_embed(t, y.shape[-2:])
         x_in = torch.cat((t_x, sp_x, x), dim = 1)
