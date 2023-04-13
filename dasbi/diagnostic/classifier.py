@@ -51,9 +51,10 @@ class CombineConv(nn.Module):
         )
 
     def forward(self, x):
+        print(x.shape)
         for c in self.combine:
-            x = self.act(c(x)) + x
-
+            x = x + self.act(c(x))
+        
         return x
 
 
