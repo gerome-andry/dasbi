@@ -202,6 +202,7 @@ def train_class(i: int):
                     plt.xlabel('FPR')
                     plt.ylabel('TPR')
                     wandb.log({"ROC_classif" : wandb.Image(plt)})
+                    plt.close()
 
 
         ### Logs
