@@ -112,7 +112,8 @@ class SampleCheck(nn.Module):
     
     def loss(self, x, y, t, labels):
         logits = self(x,y,t)
-        return nn.CrossEntropyLoss(logits, labels)
+        loss = nn.CrossEntropyLoss()
+        return loss(logits, labels)
     
     def AUC(self, x, y, t, labels, levels = 100):
         logits = self(x,y,t)
