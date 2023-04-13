@@ -44,7 +44,7 @@ class CombineConv(nn.Module):
         p = (kern - 1)//2
         if type == '1D':
             k = (k, 1)
-            p = (p, 1)
+            p = (p, 0)
 
         self.combine = nn.ModuleList(
             [nn.Conv2d(chan, chan, k, padding=p) for _ in range(nc)]
@@ -54,7 +54,7 @@ class CombineConv(nn.Module):
         print(x.shape)
         for c in self.combine:
             x = x + self.act(c(x))
-        
+
         return x
 
 
