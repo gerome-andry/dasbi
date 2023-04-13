@@ -90,7 +90,11 @@ class SampleCheck(nn.Module):
         x_in = torch.cat((t_x, sp_x, x), dim = 1)
         y_in = torch.cat((t_y, sp_y, y), dim = 1)
 
-        x = torch.cat((self.extend_y(y_in), self.combine_x(x_in)), dim = 1)
+        y_emb = y_in
+        for ey in self.extend_y:
+            y_emb = ey(y_emb)
+
+        x = torch.cat((y_emb, self.combine_x(x_in)), dim = 1)
 
         for e,r in zip(self.extract, self.reduce):
             x = e(x)
