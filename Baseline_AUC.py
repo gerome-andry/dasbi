@@ -144,7 +144,7 @@ def train_class(i: int):
             x = x[:, None, ..., None]
             y = y[..., None]
             
-            labels = torch.zeros((len(subset_data), 2))
+            labels = torch.zeros((len(subset_data), 2)).to(x)
             labels[:len(subset_data)//2, 0] = 1.
             labels[len(subset_data)//2:, 1] = 1.
 
@@ -189,7 +189,7 @@ def train_class(i: int):
                 x = x[:, None, ..., None]
                 y = y[..., None]
                 
-                labels = torch.zeros((len(subset_data), 2))
+                labels = torch.zeros((len(subset_data), 2)).to(x)
                 labels[:len(subset_data)//2, 0] = 1.
                 labels[len(subset_data)//2:, 1] = 1.
                 
