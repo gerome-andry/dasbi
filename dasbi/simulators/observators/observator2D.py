@@ -70,7 +70,7 @@ class ObservatorStation2D:
         plt.tight_layout()
         plt.show()
 
-    def observe(self, data, get_imp = False):
+    def observe(self, data, get_imp = False, imp_idx = None):
         eval_grid = torch.meshgrid(
             torch.arange(-self.aoe[0], self.aoe[0] + 1),
             torch.arange(-self.aoe[1], self.aoe[1] + 1),
@@ -105,16 +105,17 @@ class ObservatorStation2D:
             for y, _ in enumerate(row):
                 #
                 if get_imp:
-                    importance[
-                        ..., x_l[x, y] : x_r[x, y], y_d[x, y] : y_u[x, y]
-                    ] += gaussian_kernel[
-                        self.aoe[0]
-                        - (self.station[0][x, y] - x_l[x, y]) : self.aoe[0]
-                        + (x_r[x, y] - self.station[0][x, y]),
-                        self.aoe[1]
-                        - (self.station[1][x, y] - y_d[x, y]) : self.aoe[1]
-                        + (y_u[x, y] - self.station[1][x, y]),
-                    ]
+                    if (imp_idx is None) or (imp_idx is not None and x*len(row) + y == imp_idx): 
+                        importance[
+                            ..., x_l[x, y] : x_r[x, y], y_d[x, y] : y_u[x, y]
+                        ] += gaussian_kernel[
+                            self.aoe[0]
+                            - (self.station[0][x, y] - x_l[x, y]) : self.aoe[0]
+                            + (x_r[x, y] - self.station[0][x, y]),
+                            self.aoe[1]
+                            - (self.station[1][x, y] - y_d[x, y]) : self.aoe[1]
+                            + (y_u[x, y] - self.station[1][x, y]),
+                        ]
                 #
                 else:
                     obs[..., x, y] = torch.tensordot(
@@ -142,13 +143,44 @@ class ObservatorStation2D:
                 + ((pts[..., 1] - mean[1]) ** 2) / (2 * std[1] ** 2)
             )
         )
+    
+    def get_Obs_mat(self):
+        idx = self.get_mask().flatten()
+        N = len(idx)
+        idx = idx.nonzero()
+        A = torch.zeros((len(idx), N))
 
+        for i in range(len(idx)):
+            A[i,:] = self.observe(None, get_imp=True, imp_idx=i).flatten()
+         
+        return A
 
 if __name__ == "__main__":
     torch.manual_seed(42)
 
-    o = ObservatorStation2D((512, 512), (16, 16), (8, 8), (30, 30), (10, 10))
-    o.observe(torch.rand((1, 512, 512)))
+    o = ObservatorStation2D((64, 1), (3, 3), (1, 1), (3, 3), (.75, .75))
+    A = o.get_Obs_mat()
+    # print(A)
+    import matplotlib.pyplot as plt
+    exact = A@A.transpose(-2,-1)
+    plt.imshow(exact)
+    plt.show()
+
+    d = torch.diag((A**2).sum(1))
+    plt.imshow(d)
+    plt.show()
+
+    plt.imshow(exact - d)
+    plt.show()
+    print((exact-d).sum())
+    print(exact.sum())
+    # o.visualize()
+    # print(o.get_mask())
+    # idx = o.get_mask().flatten().nonzero()
+    # A = torch.zeros((4,64))
+    # A[range(4), idx] = 1
+    # print(A)
+    # o.observe(torch.rand((1, 512, 512)))
 
     # o = ObservatorStation2D((5, 1), (2, 2), (0, 0), (5, 5), (2, 2))
     # o.observe(torch.rand((3, 5, 1)))
