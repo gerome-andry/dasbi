@@ -101,8 +101,8 @@ class SampleCheck(nn.Module):
             x = e(x)
             x = r(x)
         
-        x = x.flatten(start_dim = 1)
-        for lay in self.head:
+        x = self.head[0](x).flatten(start_dim = 1)
+        for lay in self.head[1:]:
             x = self.act(lay(x))
 
         for c in self.classify:
