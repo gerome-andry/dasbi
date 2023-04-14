@@ -4,7 +4,7 @@ import torch.nn as nn
 import numpy as np
 from tqdm import trange
 
-class NsfNPE(nn.Module):
+class MafNPE(nn.Module):
     def __init__(self, emb, NSF):
         super().__init__()
         self.flow = NSF

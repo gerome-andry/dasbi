@@ -25,7 +25,7 @@ from dasbi.networks.embedding import EmbedObs
 from dasbi.simulators.sim_lorenz96 import LZ96 as sim
 
 
-SCRATCH = os.environ.get("HOME", ".")
+SCRATCH = os.environ.get("SCRATCH", ".")
 PATH = Path(SCRATCH) / "npe_conv/lz96"
 PATH.mkdir(parents=True, exist_ok=True)
 

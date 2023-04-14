@@ -22,7 +22,7 @@ from dasbi.simulators.sim_lorenz96 import LZ96 as sim
 from dasbi.diagnostic.classifier import SampleCheck
 from LZ96_CONV import build as buildSampler
 
-SCRATCH = os.environ.get("HOME", ".")
+SCRATCH = os.environ.get("SCRATCH", ".")
 PATH = Path(SCRATCH) / "auc/lz96/conv_npe"
 PATH.mkdir(parents=True, exist_ok=True)
 window = 1

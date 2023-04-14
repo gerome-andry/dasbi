@@ -19,33 +19,33 @@ from tqdm import trange
 from typing import *
 
 from lampe.inference import NPE
-from zuko.flows import NSF
+from zuko.flows import MAF
 
 from dasbi.networks.embedding import EmbedObs
 from dasbi.simulators.sim_lorenz96 import LZ96 as sim
-from dasbi.inference.models import NsfNPE
+from dasbi.inference.models import MafNPE
 
-SCRATCH = os.environ.get("HOME", ".")
+SCRATCH = os.environ.get("SCRATCH", ".")
 PATH = Path(SCRATCH) / "npe_nsf/lz96"
 PATH.mkdir(parents=True, exist_ok=True)
 
-N_grid = [2**i for i in range(3,10)]
+N_grid = [2**i for i in range(3,4)]
 Y_grid = [int(np.ceil(x/4)) for x in N_grid]
 lN = len(N_grid)
 window = 10
 CONFIG = {
     # Architecture
     "embedding": [4]*lN,
-    "hf": [[4*int(np.sqrt(k)), ]*2 for k in N_grid],
-    "tf": [2 + k//256 for k in N_grid],
+    "hf": [[32*int(k**0.5), ]*4 for k in N_grid],
+    "tf": [3 + k//256 for k in N_grid],
     # Training
-    "epochs": [512]*lN,
+    # "epochs": [512]*lN,
     "batch_size": [128]*lN,
     "step_per_batch": [512]*lN,
     "optimizer": ["AdamW"]*lN,
-    "learning_rate": [3e-3]*lN,  # np.geomspace(1e-3, 1e-4).tolist(),
-    "weight_decay": [1e-4]*lN,  # np.geomspace(1e-2, 1e-4).tolist(),
-    "scheduler": ["linear"]*lN,  # , 'cosine', 'exponential'],
+    "learning_rate": [3e-3]*lN,  
+    "weight_decay": [1e-4]*lN,  
+    "scheduler": ["linear"]*lN, 
     # Data
     "points": N_grid,
     "noise": [0.5]*lN,
@@ -72,8 +72,8 @@ def build(**config):
         conv_lay=config["embedding"],
         observer_mask=mask
     )
-    myNSF = NPE(N, emb_out[1]*N, build = NSF, passes = 2, hidden_features = config['hf'], transforms = config['tf'], randperm = True)
-    return NsfNPE(emb_net, myNSF)
+    myNSF = NPE(N, emb_out[1]*N, build = MAF, passes = 2, hidden_features = config['hf'], transforms = config['tf'], randperm = True)
+    return MafNPE(emb_net, myNSF)
 
 
 def process_sim(simulator):
@@ -91,15 +91,16 @@ def process_sim(simulator):
     simulator.time = (simulator.time - MUT) / SIGMAT
 
 
-@job(array=lN, cpus=2, gpus=1, ram="32GB", time="10:00:00")
-def train(i: int):
+@job(array=lN, cpus=2, gpus=1, ram="32GB", time="1-12:00:00")
+def MAF_train(i: int):
     # config = {key: random.choice(values) for key, values in CONFIG.items()}
     config = {key : values[i%lN] for key,values in CONFIG.items()}
 
     with open(config["observer_fp"], "rb") as handle:
         observer = pickle.load(handle)
 
-    run = wandb.init(project="dasbi", config=config, group="LZ96_scaling_assim")
+    gr = 'step' if window == 1 else 'assim'
+    run = wandb.init(project="dasbi", config=config, group="LZ96_scaling_{gr}")
     runpath = PATH / f"runs/{run.name}_{run.id}"
     runpath.mkdir(parents=True, exist_ok=True)
 
@@ -131,7 +132,9 @@ def train(i: int):
     batch_size = config["batch_size"]
     step_per_batch = config["step_per_batch"]
     best = 1000
-
+    prev_loss = best
+    time_buff = 32
+    count = 0
     ## Optimizer
     if config["optimizer"] == "AdamW":
         optimizer = torch.optim.AdamW(
@@ -154,7 +157,9 @@ def train(i: int):
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr)
 
     ## Loop
-    for epoch in trange(epochs, ncols=88):
+    # for epoch in trange(epochs, ncols=88):
+    epoch = 0
+    while True:
         losses_train = []
         losses_val = []
 
@@ -223,7 +228,7 @@ def train(i: int):
         ### Logs
         loss_train = torch.stack(losses_train).mean().item()
         loss_val = torch.stack(losses_val).mean().item()
-
+        
         run.log(
             {
                 "loss": loss_train,
@@ -234,12 +239,20 @@ def train(i: int):
         )
 
         ### Checkpoint
-        if loss_val < best * 0.98:
-            best = loss_val
+        if (prev_loss - loss_val) > 1e-1:
+            prev_loss = loss_val
             torch.save(
                 conv_npe.state_dict(),
                 runpath / f"checkpoint_{epoch:04d}.pth",
             )
+            count = 0
+        else:
+            count += 1
+
+        epoch += 1
+
+        if count == time_buff:
+            break
 
         scheduler.step()
 
@@ -248,7 +261,7 @@ def train(i: int):
 
 if __name__ == "__main__":
     schedule(
-        train,
+        MAF_train,
         name="Scaling LZ",
         backend="slurm",
         settings={"export": "ALL"},
