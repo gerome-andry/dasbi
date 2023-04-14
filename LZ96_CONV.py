@@ -31,15 +31,25 @@ PATH.mkdir(parents=True, exist_ok=True)
 
 N_grid = [2**i for i in range(3,10)]
 Y_grid = [int(np.ceil(x/4)) for x in N_grid]
+nms_dict = {
+    8: 2,
+    16: 2,
+    32: 2,
+    64: 3,
+    128: 3,
+    256: 4,
+    512: 4,
+}
+
 lN = len(N_grid)
 window = 10
 CONFIG = {
     # Architecture
     "embedding": [4]*lN,
     "kernel_size": [2]*lN,
-    "ms_modules": [1 + int(np.log2(k/128)) if k >= 128 else 1 for k in N_grid],
+    "ms_modules": [int(np.log(k)/np.log(4)) if k >= 128 else 1 for k in N_grid],
     "num_conv": [2]*lN,
-    "N_ms": [2 + int(np.log2(k/32)) if k >= 32 else 2 for k in N_grid],
+    "N_ms": [nms_dict[k] for k in N_grid],
     # Training
     # "epochs": [512]*lN,
     "batch_size": [128]*lN,
