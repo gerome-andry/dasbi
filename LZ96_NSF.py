@@ -146,11 +146,11 @@ def MAF_train(i: int):
         raise ValueError()
 
     if config["scheduler"] == "linear":
-        lr = lambda t: 1 - (t / epochs)
-    elif config["scheduler"] == "cosine":
-        lr = lambda t: (1 + math.cos(math.pi * t / epochs)) / 2
-    elif config["scheduler"] == "exponential":
-        lr = lambda t: math.exp(-7 * (t / epochs) ** 2)
+        lr = lambda t: 1# - (t / epochs)
+    # elif config["scheduler"] == "cosine":
+    #     lr = lambda t: (1 + math.cos(math.pi * t / epochs)) / 2
+    # elif config["scheduler"] == "exponential":
+    #     lr = lambda t: math.exp(-7 * (t / epochs) ** 2)
     else:
         raise ValueError()
 
