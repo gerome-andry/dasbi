@@ -197,11 +197,14 @@ def train_class(i: int):
                 losses_val.append(auc)
 
             if epoch%16 == 0:
-                x,y,t = simv.data[-1, window - 1:].cuda(), simv.obs[-1].cuda(), simv.time[-1, window - 1:].cuda()
+                lg = traj_len
+                yb = simv.obs[-1].cuda()
+                x,y,t = (simv.data[-1, window - 1:].cuda(), 
+                         torch.cat([yb[idx - window + 1 : idx + 1].unsqueeze(0) for idx in range(window-1, lg)], dim=0), 
+                         simv.time[-1, window - 1:].cuda())
                 x = x[:, None, ..., None]
                 y = y[..., None]
                 #x_fake are same as real
-                lg = len(x)
                 labels = torch.zeros((lg, 2)).to(x)
                 labels[:lg//2, 0] = 1.
                 labels[lg//2:, 1] = 1.
