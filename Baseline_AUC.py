@@ -91,7 +91,7 @@ def train_class(i: int):
     epochs = config["epochs"]
     batch_size = config["batch_size"]
     step_per_batch = config["step_per_batch"]
-    best = 1000
+    best = 0
 
     ## Optimizer
     if config["optimizer"] == "AdamW":
@@ -203,7 +203,7 @@ def train_class(i: int):
                 labels = torch.zeros((lg, 2)).to(x)
                 labels[:lg//2, 0] = 1.
                 labels[lg//2:, 1] = 1.
-                fpr, tpr, _ = classifier.AUC(x,y,t)
+                fpr, tpr, _ = classifier.AUC(x,y,t, labels)
                 plt.plot(fpr, tpr)
                 plt.title('ROC curve')
                 plt.xlabel('FPR')
@@ -225,7 +225,7 @@ def train_class(i: int):
         )
 
         ### Checkpoint
-        if loss_val < best * 0.95:
+        if loss_val > best :
             best = loss_val
             torch.save(
                 classifier.state_dict(),
