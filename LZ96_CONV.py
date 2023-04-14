@@ -29,7 +29,7 @@ SCRATCH = os.environ.get("SCRATCH", ".")
 PATH = Path(SCRATCH) / "npe_conv/lz96"
 PATH.mkdir(parents=True, exist_ok=True)
 
-N_grid = [2**i for i in range(3,10)]
+N_grid = [2**i for i in range(9,10)]
 Y_grid = [int(np.ceil(x/4)) for x in N_grid]
 lN = len(N_grid)
 window = 10
@@ -38,8 +38,8 @@ CONFIG = {
     "embedding": [4]*lN,
     "kernel_size": [2]*lN,
     "ms_modules": [1 + k//256 for k in N_grid],
-    "num_conv": [2]*lN,
-    "N_ms": [2 + k//128 for k in N_grid],
+    "num_conv": [int(np.log2(k)) - 1 for k in N_grid],
+    "N_ms": [2 + int(np.log2(k//128)) for k in N_grid],
     # Training
     "epochs": [512]*lN,
     "batch_size": [128]*lN,
@@ -117,15 +117,16 @@ def process_sim(simulator):
     simulator.time = (simulator.time - MUT) / SIGMAT
 
 
-@job(array=lN, cpus=2, gpus=1, ram="32GB", time="20:00:00")
-def train(i: int):
+@job(array=lN, cpus=2, gpus=1, ram="32GB", time="1-12:00:00")
+def CONV_train(i: int):
     # config = {key: random.choice(values) for key, values in CONFIG.items()}
     config = {key : values[i%lN] for key,values in CONFIG.items()}
 
     with open(config["observer_fp"], "rb") as handle:
         observer = pickle.load(handle)
 
-    run = wandb.init(project="dasbi", config=config, group="LZ96_scaling_assim")
+    gr = 'step' if window == 1 else 'assim'
+    run = wandb.init(project="dasbi", config=config, group=f"LZ96_scaling_{gr}")
     runpath = PATH / f"runs/{run.name}_{run.id}"
     runpath.mkdir(parents=True, exist_ok=True)
 
@@ -153,11 +154,13 @@ def train(i: int):
     run.config.num_param = size
 
     # Training
-    epochs = config["epochs"]
+    # epochs = config["epochs"]
     batch_size = config["batch_size"]
     step_per_batch = config["step_per_batch"]
     best = 1000
-
+    prev_loss = best
+    time_buff = 32
+    count = 0
     ## Optimizer
     if config["optimizer"] == "AdamW":
         optimizer = torch.optim.AdamW(
@@ -169,18 +172,20 @@ def train(i: int):
         raise ValueError()
 
     if config["scheduler"] == "linear":
-        lr = lambda t: 1 - (t / epochs)
-    elif config["scheduler"] == "cosine":
-        lr = lambda t: (1 + math.cos(math.pi * t / epochs)) / 2
-    elif config["scheduler"] == "exponential":
-        lr = lambda t: math.exp(-7 * (t / epochs) ** 2)
+        lr = lambda t: 1# - (t / epochs)
+    # elif config["scheduler"] == "cosine":
+    #     lr = lambda t: (1 + math.cos(math.pi * t / epochs)) / 2
+    # elif config["scheduler"] == "exponential":
+    #     lr = lambda t: math.exp(-7 * (t / epochs) ** 2)
     else:
         raise ValueError()
 
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr)
 
     ## Loop
-    for epoch in trange(epochs, ncols=88):
+    # for epoch in trange(epochs, ncols=88):
+    epoch = 0
+    while True:
         losses_train = []
         losses_val = []
 
@@ -209,13 +214,9 @@ def train(i: int):
             )
             x = x[:, None, ..., None]
             y = y[..., None]
-            x_ar = None
-            if config['ar']:
-                x_ar = xb[subset_data - 1]
-                x_ar = x_ar[:, None, ..., None]
             
             optimizer.zero_grad()
-            l = conv_npe.loss(x, y, t, x_ar)
+            l = conv_npe.loss(x, y, t)
             l.backward()
             optimizer.step()
 
@@ -247,86 +248,48 @@ def train(i: int):
                 )
                 x = x[:, None, ..., None]
                 y = y[..., None]
-                x_ar = None
-                if config['ar']:
-                    x_ar = xb[subset_data - 1]
-                    x_ar = x_ar[:, None, ..., None]
-
-                losses_val.append(conv_npe.loss(x, y, t, x_ar))
+                
+                losses_val.append(conv_npe.loss(x, y, t))
 
         ### Logs
         loss_train = torch.stack(losses_train).mean().item()
         loss_val = torch.stack(losses_val).mean().item()
-
+        
         run.log(
             {
                 "loss": loss_train,
                 "loss_val": loss_val,
                 "time_epoch": (end - start),
                 "lr": optimizer.param_groups[0]["lr"],
+                "plateau_buffer": count,
+                "epoch": epoch
             }
         )
 
         ### Checkpoint
-        if loss_val < best * 0.98:
-            best = loss_val
+        if (prev_loss - loss_val) > 1e-1:
+            prev_loss = loss_val
             torch.save(
                 conv_npe.state_dict(),
                 runpath / f"checkpoint_{epoch:04d}.pth",
             )
+            count = 0
+        else:
+            count += 1
+
+        epoch += 1
+
+        if count == time_buff:
+            break
 
         scheduler.step()
 
-    # # Load best checkpoint
-    # checkpoints = sorted(runpath.glob("checkpoint_*.pth"))
-    # state = torch.load(checkpoints[-1])
-
-    # conv_npe.load_state_dict(state)
-    # conv_npe.eval()
-
-    # # Evaluation
-    # sime = sim(N=config["points"], noise=config["noise"])
-    # sime.init_observer(observer)
-    # sime.generate_steps(torch.randn((1, config["points"])), times)
-
-    # x, y, t = sime.data[9], sime.obs[:10], sime.time[9]
-
-    # x = x[:, None, :, None]
-    # y = y[None, :, :, None]
-    # t = t.unsqueeze(0)
-
-    # traj = []
-    # for yt, t in zip(y, t):
-    #     samp = conv_npe.sample(yt.unsqueeze(0), t.unsqueeze(1), 3).cpu().numpy()
-    #     traj.append(samp.unsqueeze(0))
-    # traj = torch.cat(traj, dim=0).squeeze()
-
-    # fig, axs = plt.subplots(4, 1, figsize=(7, 7))
-    # figo, axso = plt.subplots(4, 1, figsize=(7, 7))
-
-    # for i, (ax, axo) in enumerate(zip(axs.flat, axso.flat)):
-    #     if i == 3:
-    #         ax.imshow(x.squeeze().cpu().numpy(), cmap=seaborn.cm.coolwarm)
-    #         axo.imshow(y.squeeze().cpu().numpy(), cmap=seaborn.cm.coolwarm)
-    #     else:
-    #         ax.imshow(traj[..., i], cmap=seaborn.cm.coolwarm)
-    #         o = sime.observe(traj[..., i])
-    #         axo.imshow(o, cmap=seaborn.cm.coolwarm)
-
-    #     ax.label_outer()
-    #     axo.label_outer()
-
-    # fig.tight_layout()
-    # figo.tight_layout()
-
-    # run.log({"sample_traj": wandb.Image(fig)})
-    # run.log({"sample_obs": wandb.Image(figo)})
     run.finish()
 
 
 if __name__ == "__main__":
     schedule(
-        train,
+        CONV_train,
         name="Scaling LZ",
         backend="slurm",
         settings={"export": "ALL"},
