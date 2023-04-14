@@ -37,9 +37,9 @@ CONFIG = {
     # Architecture
     "embedding": [4]*lN,
     "kernel_size": [2]*lN,
-    "ms_modules": [1 + int(np.log2(k//128)) for k in N_grid],
+    "ms_modules": [1 + int(np.log2(k/128)) for k in N_grid],
     "num_conv": [2]*lN,
-    "N_ms": [2 + int(np.log2(k//32)) for k in N_grid],
+    "N_ms": [2 + int(np.log2(k/32)) for k in N_grid],
     # Training
     # "epochs": [512]*lN,
     "batch_size": [128]*lN,
