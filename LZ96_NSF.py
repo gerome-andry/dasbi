@@ -100,7 +100,7 @@ def MAF_train(i: int):
         observer = pickle.load(handle)
 
     gr = 'step' if window == 1 else 'assim'
-    run = wandb.init(project="dasbi", config=config, group="LZ96_scaling_{gr}")
+    run = wandb.init(project="dasbi", config=config, group=f"LZ96_scaling_{gr}")
     runpath = PATH / f"runs/{run.name}_{run.id}"
     runpath.mkdir(parents=True, exist_ok=True)
 
@@ -128,7 +128,7 @@ def MAF_train(i: int):
     run.config.num_param = size
 
     # Training
-    epochs = config["epochs"]
+    # epochs = config["epochs"]
     batch_size = config["batch_size"]
     step_per_batch = config["step_per_batch"]
     best = 1000
