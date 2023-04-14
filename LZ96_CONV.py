@@ -42,7 +42,7 @@ nms_dict = {
 }
 
 lN = len(N_grid)
-window = 10
+window = 1
 CONFIG = {
     # Architecture
     "embedding": [4]*lN,
