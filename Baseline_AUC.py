@@ -139,7 +139,7 @@ def train_class(i: int):
             )
             # ADD HERE SAMPLES FOR NEG
             # x_fake = model.sample...
-            x_fake = torch.randn_like(xb[sd_neg])
+            x_fake = xb[sd_neg]
             x = torch.cat((x,x_fake), dim = 0)
             x = x[:, None, ..., None]
             y = y[..., None]
@@ -184,7 +184,7 @@ def train_class(i: int):
                 )
                 # ADD HERE SAMPLES FOR NEG
                 # x_fake = model.sample...
-                x_fake = torch.randn_like(xb[sd_neg])
+                x_fake = xb[sd_neg]
                 x = torch.cat((x,x_fake), dim = 0)
                 x = x[:, None, ..., None]
                 y = y[..., None]
@@ -193,16 +193,23 @@ def train_class(i: int):
                 labels[:len(subset_data)//2, 0] = 1.
                 labels[len(subset_data)//2:, 1] = 1.
                 
-                fpr, tpr, auc = classifier.AUC(x, y, t, labels)
+                _, _, auc = classifier.AUC(x, y, t, labels)
                 losses_val.append(auc)
 
-                if epoch%8 == 0:
-                    plt.plot(fpr, tpr)
-                    plt.title('ROC curve')
-                    plt.xlabel('FPR')
-                    plt.ylabel('TPR')
-                    wandb.log({"ROC_classif" : wandb.Image(plt)})
-                    plt.close()
+            if epoch%16 == 0:
+                x,y,t = simv.data[-1, window - 1:].cuda(), simv.obs[-1].cuda(), simv.time[-1, window - 1:].cuda()
+                #x_fake are same as real
+                lg = len(x)
+                labels = torch.zeros((lg, 2)).to(x)
+                labels[:lg//2, 0] = 1.
+                labels[lg//2:, 1] = 1.
+                fpr, tpr, _ = classifier.AUC(x,y,t)
+                plt.plot(fpr, tpr)
+                plt.title('ROC curve')
+                plt.xlabel('FPR')
+                plt.ylabel('TPR')
+                run.log({"ROC_classif" : wandb.Image(plt)})
+                plt.close()
 
 
         ### Logs

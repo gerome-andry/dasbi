@@ -121,8 +121,8 @@ class SampleCheck(nn.Module):
         # logits[0,0] = .8
         # logits[0,1] = .2
         thresholds = torch.linspace(0,1,levels)
-        fpr = []
-        tpr = []
+        fpr = [0, 1]
+        tpr = [0, 1]
         N = logits.shape[0]
         for th in thresholds:
             pos_pred = logits[:,0] > th

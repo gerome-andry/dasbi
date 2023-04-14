@@ -20,6 +20,7 @@ class AttentionSkip(nn.Module):
         self.act = nn.ELU()
         self.up = nn.Upsample(scale_factor = k)
         self.combine = nn.Conv2d(chan, chan, 1, 1)
+        self.att_weights = nn.Sigmoid()
         
     def spatialSoftMax(self, x):
         return x.exp()/(x.exp().sum(dim = (-2,-1), keepdim = True))
@@ -27,7 +28,7 @@ class AttentionSkip(nn.Module):
     def forward(self, x, q):
         w_att = self.act(q + self.scale_dpath(x))
         w_att = self.combine(self.up(w_att))
-        w_att = self.spatialSoftMax(self.act(w_att))
+        w_att = self.att_weights(self.act(w_att))
 
         return x*w_att
 
