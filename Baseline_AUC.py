@@ -198,6 +198,8 @@ def train_class(i: int):
 
             if epoch%16 == 0:
                 x,y,t = simv.data[-1, window - 1:].cuda(), simv.obs[-1].cuda(), simv.time[-1, window - 1:].cuda()
+                x = x[:, None, ..., None]
+                y = y[..., None]
                 #x_fake are same as real
                 lg = len(x)
                 labels = torch.zeros((lg, 2)).to(x)
