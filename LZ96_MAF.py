@@ -91,7 +91,7 @@ def process_sim(simulator):
     simulator.time = (simulator.time - MUT) / SIGMAT
 
 
-@job(array=10*lN, cpus=2, gpus=1, ram="32GB", time="1-12:00:00")
+@job(array=5*lN, cpus=2, gpus=1, ram="32GB", time="1-12:00:00")
 def MAF_train(i: int):
     # config = {key: random.choice(values) for key, values in CONFIG.items()}
     config = {key : values[i%lN] for key,values in CONFIG.items()}

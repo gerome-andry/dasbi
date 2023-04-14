@@ -1,5 +1,6 @@
 \documentclass[a4paper, 12pt]{article}
 \usepackage[utf8]{inputenc}
+\usepackage{bookmark}
 
 \usepackage{amsfonts}
 \usepackage{amssymb}
@@ -56,6 +57,8 @@
 \section{Introduction}
 \subsection{Inverse problem}
 General purpose (from which SBI is in)
+Speak about linear/non-linear problem, data-dependent noise, ... 
+And specify the setup of this thesis
 \subsection{Data assimilation}
 4D Var, ... 
 \subsection{Problem statement}
@@ -72,7 +75,7 @@ Frontier SBI + packages (nflows Cranmer, lampe, zuko, ... ?), Bayes, ...
 
 \section{Application to data assimilation problems}
 \subsection{Assumptions}
-Simulator, pairs x/y, no prior knowledge on $p(x_0)$ at first,
+Simulator, pairs x/y, no prior knowledge on $p(x_0)$ at first or at least no close form of marginals,
 general black-box observator (then, unwarp -> linear), high dimensionality,
 spatial structure, ... TIME embed -> no ass about stationarity of density (mention FR work)
 
@@ -83,17 +86,31 @@ Do not work well but try other flow ... ?
 speak here about state density 
 \subsection{NSE}
 novel method, high dimensionality expectation, domain generalization
-
+-> Linear or not (develop both formulae)
+Linear : Good to train 1 network no matter the observations (and adapt to observations). In this 
+setup, we could imagine having a linear temporal observator $y(t) = A_t x_t + \eta$
 \section{Experiments}
 \subsection{Evaluation protocol}
 Add a word about architectures in appendix.
 Training + validation on WndB, then evaluation 
-Corner plot (comparison between methods)
-Sampled trajectory (qualitative)
-Loss (link between NSE and NPE ?)
-Observation coherence (special word when assimilation window but ok)
-Physical coherence (take a look at samples given specific observations OR train a 
-discriminative classifier between the sampler and the true states -> if good, not good samples)
+Corner plot (comparison between methods) posterior along time marginal (reduce uncertainty)
+-> For both samples and observations (with the true observator but samples observed)
+Samples (qualitative -> mainly for 2D problem, hard for 1D)
+Loss (link between NSE and NPE ?) -> Explain both losses and develop log prob for NSE 
+
+Mainly, physical and observation coherence 
+-> use of a classifier that is shared among models and that discriminates between true and fake samples 
+(need positional and time embedding in order to give spatial coherence)
+(develop how to perform the classification for observations)
+remember $p(x_t|y_t,t)$ so one has class = $p(X = true|y_t, t)$
+\subsubsection{Corner plot}
+\subsubsection{Discriminator network}
+As in GAN 
+\subsubsection{Qualitative assessment}
+\subsubsection{Temporal consistency}
+Qualitative, better with assimilation window, but problems inherent to the method.
+-> Mention François and HMM
+
 
 \subsection{Simulators}
 \subsubsection{Lorenz-96}
@@ -102,7 +119,8 @@ discriminative classifier between the sampler and the true states -> if good, no
 \subsection{Results}
 
 \section{Conclusion}
-
+Real world problem ... ? 
+Probabilistic model !
 \section{References}
 
 \end{document}
