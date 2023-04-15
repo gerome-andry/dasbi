@@ -201,7 +201,7 @@ def MAF_train(i: int):
         ### Valid
         i = np.random.choice(
             len(simv.data),
-            size=batch_size // 4,
+            size=batch_size//2,
             replace=False,
         )
 
@@ -241,7 +241,7 @@ def MAF_train(i: int):
         )
 
         ### Checkpoint
-        if (prev_loss - loss_val) > 1e-1:
+        if (prev_loss - loss_val) > 5e-2:
             prev_loss = loss_val
             torch.save(
                 conv_npe.state_dict(),
