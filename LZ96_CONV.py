@@ -31,8 +31,8 @@ PATH.mkdir(parents=True, exist_ok=True)
 
 # N_grid = [2**i for i in range(3,10)]
 N_grid = []
-N_grid += [128,]*3
-N_grid += [256,]*3
+N_grid += [64,]*1
+N_grid += [256,]*1
 N_grid += [512,]*5
 Y_grid = [int(np.ceil(x/4)) for x in N_grid]
 nms_dict = {
@@ -46,7 +46,7 @@ nms_dict = {
 }
 
 lN = len(N_grid)
-window = 1
+window = 10
 CONFIG = {
     # Architecture
     "embedding": [4]*lN,
