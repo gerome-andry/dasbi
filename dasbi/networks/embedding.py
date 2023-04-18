@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 
-
 class EmbedObs(nn.Module):
     def __init__(self, in_shape, out_shape, conv_lay=2, observer_mask = None):
         super().__init__()
@@ -89,7 +88,8 @@ class EmbedObs(nn.Module):
 
         if y_emb.isnan().sum():
             print('EXT')
-            exit()
+            y_emb = torch.nan_to_num(y_emb)
+            # exit()
         if self.obs is None:
             y_emb = self.upsample(y_emb)
             y_emb = self.act(y_emb)

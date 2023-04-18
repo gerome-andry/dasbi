@@ -1,5 +1,6 @@
 import torch 
-import torch.nn as nn     
+import torch.nn as nn 
+from ..diagnostic.classifier import time_embed    
 
 class LayerNorm(nn.Module):
     def __init__(self, dim, eps = 1e-5):
@@ -13,9 +14,9 @@ class LayerNorm(nn.Module):
         return (x - mu)/(var + self.eps).sqrt()
     
 class AttentionSkip(nn.Module):
-    def __init__(self, chan, type = '2D'):
+    def __init__(self, chan, type = '2D', factor = 2):
         super().__init__()
-        k = 2 if type == '2D' else (2,1)
+        k = factor if type == '2D' else (factor,1)
         self.scale_dpath = nn.Conv2d(chan, chan, k, stride = k)
         self.act = nn.ELU()
         self.up = nn.Upsample(scale_factor = k)
@@ -33,9 +34,9 @@ class AttentionSkip(nn.Module):
         return x*w_att
 
 class downUpLayer(nn.Module):
-    def __init__(self, input_c, scale_c = 2, kernel_sz = 3, n_c = 2):
+    def __init__(self, input_c, output_c, kernel_sz = 3, n_c = 2):
         super().__init__()
-        output_c = int(input_c*scale_c)
+        # output_c = int(torch.round(torch.tensor(input_c*scale_c)))
         self.act = nn.ELU()
         self.ln = LayerNorm((-2, -1))
         
@@ -57,8 +58,8 @@ class downUpLayer(nn.Module):
 
 
 class ScoreAttUNet(nn.Module):
-    def __init__(self, input_c = 1, depth = 3, 
-                input_scale = 64, spatial_scale = 2, n_c = 2, 
+    def __init__(self, input_c = 1, output_c = 1, depth = 3, 
+                input_hidden = 64, spatial_scale = 2, n_c = 2, 
                 ks = 3, type = '2D'):
         super().__init__()
 
@@ -71,23 +72,27 @@ class ScoreAttUNet(nn.Module):
     #DOWN
         if type == '1D':
             ks = (ks, 1)
-        self.down.append(downUpLayer(input_c, input_scale, n_c = n_c, kernel_sz = ks))
-        nextLayC = int(input_scale*input_c)
-        self.att_skip.extend([AttentionSkip(chan = nextLayC * spatial_scale ** i, type = type)
+        
+        input_c += 1 #for time embedding
+        # input_scale = input_hidden/input_c
+        self.down.append(downUpLayer(input_c, input_hidden, n_c = n_c, kernel_sz = ks))
+        nextLayC = input_hidden
+        self.att_skip.extend([AttentionSkip(chan = nextLayC * spatial_scale ** i, type = type, factor = spatial_scale)
                             for i in range(depth - 1)])
-        self.down.extend([downUpLayer(nextLayC * spatial_scale ** i, spatial_scale, n_c = n_c, kernel_sz = ks)
+        # + 1 in dow path for time embedding
+        self.down.extend([downUpLayer(nextLayC * spatial_scale ** i + 1, nextLayC * spatial_scale ** (i+1), n_c = n_c, kernel_sz = ks)
                             for i in range(depth - 1)])
-        c = ((2) if type == '2D' else (2,1))
+        c = ((spatial_scale) if type == '2D' else (spatial_scale,1))
         self.pool.extend([nn.Conv2d(nextLayC * spatial_scale ** i, nextLayC * spatial_scale ** i, c, stride = c)
                             for i in range(depth - 1)])
         nextLayC = nextLayC * spatial_scale ** (depth-1)
     #UP & REDUCTION
         self.reduceChannel.extend([nn.Conv2d(nextLayC//(spatial_scale**i), nextLayC//(spatial_scale**(i+1)), 1)
                                     for i in range(depth)])
-        self.up.extend([downUpLayer(nextLayC//(spatial_scale**i), 1/spatial_scale, n_c = n_c, kernel_sz = ks)
+        self.up.extend([downUpLayer(nextLayC//(spatial_scale**i), nextLayC//(spatial_scale**(i+1)), n_c = n_c, kernel_sz = ks)
                                     for i in range(depth - 1)])
         outC = nextLayC//(spatial_scale**depth)
-        self.tail = nn.Conv2d(outC, input_c, 1)
+        self.tail = nn.Conv2d(outC, output_c, 1)
 
         self.upSample = nn.Upsample(scale_factor = ((2) if type == '2D' else (2,1)))
 
@@ -97,30 +102,28 @@ class ScoreAttUNet(nn.Module):
         return self.upSample(y)
 
 
-    def forward(self, x):
+    def forward(self, x, k): #x contains x_k and context ; k is the score time index [0, 1]
         x_skip = []
-
         for d,p in zip(self.down[:-1], self.pool):
+            k_emb = time_embed(k, x.shape[-2:])
+            x = torch.cat((x, k_emb), 1)
             x = d(x)
             x_skip.append(x)
             x = p(x)
         
+        k_emb = time_embed(k, x.shape[-2:])
+        x = torch.cat((x, k_emb), 1)
         x = self.down[-1](x)
         for i,u in enumerate(self.up):
             x = self.fullScaleUp(x, i)
-            if i == len(self.up) - 1:
-                break
-            # skip_shape = x.shape
-            #for size compatibility with residual connections if the size is not multiple of 2
-            xFull = torch.cat((x, self.att_skip[-(i+1)](x_skip[-(i+1)], x)), 1)
+            xFull = torch.cat((self.att_skip[-(i+1)](x_skip[-(i+1)], x)), 1)
             x = u(xFull)
 
-        x = self.up[-1](x)
-        x = self.upSample(x)
+        x = self.reduceChannel[-1](x)
         x = self.tail(x)
         
         return x
     
 
-m = ScoreAttUNet(depth = 4, type = '2D', input_c = 5, spatial_scale=2, n_c = 2, input_scale=64/5)
+m = ScoreAttUNet(depth = 3, type = '2D', input_c = 5, output_c = 2, spatial_scale=2, n_c = 2, input_hidden=64)
 print(m)

@@ -1,5 +1,23 @@
-Inverse problem states for the process of retrieving causal factors that will explain some observations 
-of a given phenomenon. 
+Inverse problem states for the process of retrieving causal factors that best explain observations 
+of a phenomenon. In simulated physics, it opposes to forward problem which starts from causes
+to produce consequences. Its simplest form being, from some initial conditions, simulate a system (of ODE, SDE, ...) 
+whereas trying to find best initial conditions that have produced this simulation
+is an inverse problem.\\
+
+This can take several forms. One could estimate states of a phenomenon as well as factors
+that characterize it, ...
+For example ... citer des domaines\\
+
+Data assimilation is a specific type of inverse problem in which states of a system are estimated
+from observations. The purpose being to assimilate a window of fresh observations to make predictions 
+about plausible states that have generated them. By doing so, one could start from this state to make
+a forecast.\\ 
+This is intensively used in weather predictions. Starting from a prior knowledge about the
+phenomenon, one can simulate for the atmospheric state evolution in order to predict the weather in the 
+coming few days. Nevertheless, this only holds for perfect simulators and infinitely precise states.
+Indeed, such big systems are very chaotic and simulators are often an approximation of the reality.
+A solution being to frequently refresh the estimation of the current state by taking into account
+observations and make the simulated trajectory better fit the reality. ECMWF uses 4DVar ... speak about it
 
 % In the context of simulators, it is the process which associates plausible simulatorparameters to 
 % observations (e.g. initial state, )
