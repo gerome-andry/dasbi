@@ -29,7 +29,11 @@ SCRATCH = os.environ.get("SCRATCH", ".")
 PATH = Path(SCRATCH) / "npe_conv/lz96"
 PATH.mkdir(parents=True, exist_ok=True)
 
-N_grid = [2**i for i in range(3,10)]
+# N_grid = [2**i for i in range(3,10)]
+N_grid = []
+N_grid += [128,]*3
+N_grid += [256,]*3
+N_grid += [512,]*5
 Y_grid = [int(np.ceil(x/4)) for x in N_grid]
 nms_dict = {
     8: 2,
@@ -42,7 +46,7 @@ nms_dict = {
 }
 
 lN = len(N_grid)
-window = 10
+window = 1
 CONFIG = {
     # Architecture
     "embedding": [4]*lN,
@@ -127,7 +131,7 @@ def process_sim(simulator):
     simulator.time = (simulator.time - MUT) / SIGMAT
 
 
-@job(array=5*lN, cpus=2, gpus=1, ram="32GB", time="1-12:00:00")
+@job(array=lN, cpus=2, gpus=1, ram="32GB", time="1-12:00:00")
 def CONV_train(i: int):
     # config = {key: random.choice(values) for key, values in CONFIG.items()}
     config = {key : values[i%lN] for key,values in CONFIG.items()}
