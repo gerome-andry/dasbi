@@ -29,10 +29,10 @@ SCRATCH = os.environ.get("SCRATCH", ".")
 PATH = Path(SCRATCH) / "npe_conv/lz96"
 PATH.mkdir(parents=True, exist_ok=True)
 
-# 128 - 3, 256 - 4, 512 - 5
+# 256 - 4, 512 - 5
 # N_grid = [2**i for i in range(3,10)]
 N_grid = []
-N_grid += [128,]*3
+# N_grid += [128,]*3
 N_grid += [256,]*4
 N_grid += [512,]*5
 Y_grid = [int(np.ceil(x/4)) for x in N_grid]

@@ -25,8 +25,19 @@ from LZ96_CONV import build as buildSampler
 SCRATCH = os.environ.get("SCRATCH", ".")
 PATH = Path(SCRATCH) / "auc/lz96/conv_npe"
 PATH.mkdir(parents=True, exist_ok=True)
+
 window = 1
-N = 256
+N_grid = [2**i for i in range(3,10)]
+lN = len(N_grid)
+nms_dict = {
+    8: 2,
+    16: 2,
+    32: 2,
+    64: 3,
+    128: 3,
+    256: 4,
+    512: 4,
+}
 CONFIG = {
     "observer_fp" : [f"experiments/observer{N}LZ.pickle"],
     "points" : [N],
@@ -68,10 +79,12 @@ def process_sim(simulator):
     simulator.time = (simulator.time - MUT) / SIGMAT
 
 
-@job(array=1, cpus=2, gpus=1, ram="32GB", time="10:00:00")
+@job(array=5*lN, cpus=2, gpus=1, ram="32GB", time="2-10:00:00")
 def train_class(i: int):
     # config = {key: random.choice(values) for key, values in CONFIG.items()}
-    config = {key : values[i] for key,values in CONFIG.items()}
+    run_idx = i%lN
+    # recover the good model ... 
+    config = {key : values[i%5] for key,values in CONFIG.items()}
 
     with open(config["observer_fp"], "rb") as handle:
         observer = pickle.load(handle)
@@ -97,7 +110,10 @@ def train_class(i: int):
     process_sim(simv)
 
     # Network
-    classifier = SampleCheck(config["x_dim"], config["y_dim"], reduce = int(np.log2(config["points"])) - 1, type = '1D').cuda()
+    classifier = SampleCheck(config["x_dim"], config["y_dim"], 
+                             reduce = int(np.log2(config["points"])) - 1, 
+                             type = '1D').cuda()
+    # So we always have 2 features at the end of convolution extraction part
     size = sum(param.numel() for param in classifier.parameters())
     run.config.num_param = size
 

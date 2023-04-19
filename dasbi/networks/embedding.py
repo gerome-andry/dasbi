@@ -95,18 +95,21 @@ class EmbedObs(nn.Module):
             y_emb = self.act(y_emb)
         if y_emb.isnan().sum():
             print('UP')
-            exit()
+            y_emb = torch.nan_to_num(y_emb)
+            # exit()
         for mu in self.mix_up:
             y_emb = mu(y_emb)
             y_emb = self.act(y_emb)
         if y_emb.isnan().sum():
             print('MU')
-            exit()
+            y_emb = torch.nan_to_num(y_emb)
+            # exit()
         y_emb = self.head(y_emb)
         y_emb = self.act(y_emb)
         if y_emb.isnan().sum():
             print('HEAD')
-            exit()
+            y_emb = torch.nan_to_num(y_emb)
+            # exit()
         return torch.cat((y_emb, t_emb), dim=1)
 
 
