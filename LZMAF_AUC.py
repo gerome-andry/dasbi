@@ -114,7 +114,7 @@ def train_class(i: int):
 
     # Network
     if y_mode:
-        state_sz = config["y_dim"]
+        state_sz = list(config["y_dim"])
         state_sz[1] = 1
         classifier = SampleCheck(state_sz, config["y_dim"], 
                              reduce = int(np.log2(config["points"]//4)), 
