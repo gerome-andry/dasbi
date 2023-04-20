@@ -234,13 +234,17 @@ def train_class(i: int):
                 losses_val.append(auc)
 
             if epoch%16 == 0:
-                lg = traj_len
                 yb = simv.obs[-1].cuda()
                 x,y,t = (simv.data[-1, window - 1:].cuda(), 
-                         torch.cat([yb[idx - window + 1 : idx + 1].unsqueeze(0) for idx in range(window-1, lg)], dim=0), 
+                         torch.cat([yb[idx - window + 1 : idx + 1].unsqueeze(0) for idx in range(window-1, traj_len)], dim=0), 
                          simv.time[-1, window - 1:].cuda())
-                x = x[:, None, ..., None]
+                lg = len(t)
+                
                 y = y[..., None]
+                x_fake = sampler.sample(y[lg//2:], t[lg//2:], 1).squeeze()
+                x[lg//2:] = x_fake
+                x = x[:, None, ..., None]
+
                 #x_fake are same as real
                 labels = torch.zeros((lg, 2)).to(x)
                 labels[:lg//2, 0] = 1.
