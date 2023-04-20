@@ -26,7 +26,7 @@ SCRATCH = os.environ.get("SCRATCH", ".")
 PATH = Path(SCRATCH) / "auc/lz96/maf_npe"
 PATH.mkdir(parents=True, exist_ok=True)
 
-window = 1
+window = 10
 N = 8
 # N_grid = [2**i for i in range(3,10)]
 # lN = len(N_grid)
