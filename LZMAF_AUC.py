@@ -57,7 +57,7 @@ CONFIG = {
     "hf": [[32*int(N**0.5), ]*4],
     "tf": [3 + N//256],
     # Data
-    "device": ['cpu'],
+    "device": ['cuda'],
     "y_dim_emb": [(1, 5, N, 1)],
 }
 
@@ -76,7 +76,7 @@ def process_sim(simulator):
     simulator.time = (simulator.time - MUT) / SIGMAT
 
 
-@job(array=5, cpus=2, gpus=0, ram="32GB", time="10:00:00")
+@job(array=5, cpus=2, gpus=1, ram="32GB", time="10:00:00")
 def train_class(i: int):
     # config = {key: random.choice(values) for key, values in CONFIG.items()}
     run_idx = i%5
@@ -165,8 +165,7 @@ def train_class(i: int):
                 size=step_per_batch,
                 replace=False,
             )
-            sd_pos = subset_data[:len(subset_data)//2]
-            sd_neg = subset_data[len(subset_data)//2:]
+            sd_pos = subset_data[:step_per_batch//2]
 
             x, y, t = (
                 xb[sd_pos],
@@ -176,10 +175,8 @@ def train_class(i: int):
             # ADD HERE SAMPLES FOR NEG
             # x_fake = model.sample...
             y = y[..., None]
-            print(y.shape)
-            print(t.shape)
             with torch.no_grad():
-                x_fake = sampler.sample(y[sd_neg], t[sd_neg], 1).squeeze()
+                x_fake = sampler.sample(y[step_per_batch//2:], t[step_per_batch//2:], 1).squeeze()
     
             x = torch.cat((x,x_fake), dim = 0)
             x = x[:, None, ..., None]
@@ -214,8 +211,7 @@ def train_class(i: int):
                     replace=False,
                 )
 
-                sd_pos = subset_data[:len(subset_data)//2]
-                sd_neg = subset_data[len(subset_data)//2:]
+                sd_pos = subset_data[:step_per_batch//2]
 
                 x, y, t = (
                     xb[sd_pos],
@@ -226,7 +222,7 @@ def train_class(i: int):
                 # x_fake = model.sample...
 
                 y = y[..., None]
-                x_fake = sampler.sample(y[sd_neg], t[sd_neg], 1).squeeze()
+                x_fake = sampler.sample(y[step_per_batch//2:], t[step_per_batch//2:], 1).squeeze()
                 x = torch.cat((x,x_fake), dim = 0)
                 x = x[:, None, ..., None]
                 
