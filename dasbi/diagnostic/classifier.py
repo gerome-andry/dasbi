@@ -63,7 +63,7 @@ class SampleCheck(nn.Module):
         super().__init__()
         # spatial encoding
         # time embedding
-        add_chan = 2 + 1  # spatial encoding + time encoding
+        add_chan = 0 + 1  # spatial encoding + time encoding
         self.extend_y = nn.ModuleList(
             [nn.Upsample(x_shape[-2:]), nn.Conv2d(y_shape[1] + add_chan, init_c, 1)]
         )
@@ -88,8 +88,8 @@ class SampleCheck(nn.Module):
         sp_y = pos_embed(y.shape[-2:]).expand(y.shape[0], -1, -1, -1).to(x)
         t_x = time_embed(t, x.shape[-2:])
         t_y = time_embed(t, y.shape[-2:])
-        x_in = torch.cat((t_x, sp_x, x), dim = 1)
-        y_in = torch.cat((t_y, sp_y, y), dim = 1)
+        x_in = torch.cat((t_x, x), dim = 1)
+        y_in = torch.cat((t_y, y), dim = 1)
 
         y_emb = y_in
         for ey in self.extend_y:
