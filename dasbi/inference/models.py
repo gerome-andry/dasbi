@@ -16,11 +16,8 @@ class MafNPE(nn.Module):
         return self.flow(x.reshape((batch, -1)), y_t.reshape(batch, -1))
 
     def sample(self, y, t, n):
-        print("seems fine")
         y_t = self.emb(y,t)
-        print("strange")
         batch = y_t.shape[0]
-        print("cacahuete")
         return self.flow.flow(y_t.reshape((batch, -1))).sample((n,))
     
     def loss(self, x, y, t):
