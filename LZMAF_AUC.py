@@ -39,6 +39,7 @@ nms_dict = {
     256: 4,
     512: 4,
 }
+y_mode = False 
 
 CONFIG = {
     "observer_fp" : [f"experiments/observer{N}LZ.pickle"],
@@ -60,8 +61,6 @@ CONFIG = {
     "device": ['cuda'],
     "y_dim_emb": [(1, 5, N, 1)],
 }
-
-y_mode = True 
 
 def process_sim(simulator):
     MUX = simulator.data.mean(dim=(0, 1))
