@@ -76,7 +76,7 @@ def process_sim(simulator):
     simulator.time = (simulator.time - MUT) / SIGMAT
 
 
-@job(array=5, cpus=2, gpus=1, ram="32GB", time="10:00:00")
+@job(array=5, cpus=2, gpus=0, ram="32GB", time="10:00:00")
 def train_class(i: int):
     # config = {key: random.choice(values) for key, values in CONFIG.items()}
     run_idx = i%5
@@ -176,6 +176,8 @@ def train_class(i: int):
             # ADD HERE SAMPLES FOR NEG
             # x_fake = model.sample...
             y = y[..., None]
+            print(y.shape)
+            print(t.shape)
             with torch.no_grad():
                 x_fake = sampler.sample(y[sd_neg], t[sd_neg], 1).squeeze()
     
