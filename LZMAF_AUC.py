@@ -57,7 +57,7 @@ CONFIG = {
     "hf": [[32*int(N**0.5), ]*4],
     "tf": [3 + N//256],
     # Data
-    "device": ['cuda'],
+    "device": ['cpu'],
     "y_dim_emb": [(1, 5, N, 1)],
 }
 
@@ -109,7 +109,7 @@ def train_class(i: int):
     # Network
     classifier = SampleCheck(config["x_dim"], config["y_dim"], 
                              reduce = int(np.log2(config["points"])) - 1, 
-                             type = '1D').cuda()
+                             type = '1D').to(config['device'])
     # So we always have 2 features at the end of convolution extraction part
     size = sum(param.numel() for param in classifier.parameters())
     run.config.num_param = size
@@ -158,7 +158,7 @@ def train_class(i: int):
         start = time.time()
 
         for xb, yb, tb in zip(
-            simt.data[k].cuda(), simt.obs[k].cuda(), simt.time[k].cuda()
+            simt.data[k].to(config['device']), simt.obs[k].to(config['device']), simt.time[k].to(config['device'])
         ):
             subset_data = np.random.choice(
                 np.arange(window - 1, traj_len),#because window of 10
@@ -206,7 +206,7 @@ def train_class(i: int):
 
         with torch.no_grad():
             for xb, yb, tb in zip(
-                simv.data[k].cuda(), simv.obs[k].cuda(), simv.time[k].cuda()
+                simv.data[k].to(config['device']), simv.obs[k].to(config['device']), simv.time[k].to(config['device'])
             ):
                 subset_data = np.random.choice(
                     np.arange(window - 1, traj_len),
@@ -238,10 +238,10 @@ def train_class(i: int):
                 losses_val.append(auc)
 
             if epoch%16 == 0:
-                yb = simv.obs[-1].cuda()
-                x,y,t = (simv.data[-1, window - 1:].cuda(), 
+                yb = simv.obs[-1].to(config['device'])
+                x,y,t = (simv.data[-1, window - 1:].to(config['device']), 
                          torch.cat([yb[idx - window + 1 : idx + 1].unsqueeze(0) for idx in range(window-1, traj_len)], dim=0), 
-                         simv.time[-1, window - 1:].cuda())
+                         simv.time[-1, window - 1:].to(config['device']))
                 lg = len(t)
                 
                 y = y[..., None]
