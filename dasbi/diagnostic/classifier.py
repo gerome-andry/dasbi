@@ -69,7 +69,7 @@ class SampleCheck(nn.Module):
         )
         self.act = nn.ELU()
         self.combine_x = nn.Conv2d(x_shape[1] + add_chan, init_c, 1)
-        self.extract = nn.ModuleList([CombineConv((2*init_c)*(factor**i), nc, type = type) for i in range(reduce)])
+        self.extract = nn.ModuleList([CombineConv((2*init_c) + init_c*i, nc, type = type) for i in range(reduce)])
         k = factor
         s = factor
         if type == '1D':
