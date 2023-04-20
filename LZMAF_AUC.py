@@ -20,10 +20,10 @@ from typing import *
 
 from dasbi.simulators.sim_lorenz96 import LZ96 as sim
 from dasbi.diagnostic.classifier import SampleCheck
-from LZ96_CONV import build as buildSampler
+from LZ96_MAF import build as buildSampler
 
 SCRATCH = os.environ.get("SCRATCH", ".")
-PATH = Path(SCRATCH) / "auc/lz96/conv_npe"
+PATH = Path(SCRATCH) / "auc/lz96/maf_npe"
 PATH.mkdir(parents=True, exist_ok=True)
 
 window = 1
@@ -39,6 +39,7 @@ nms_dict = {
     256: 4,
     512: 4,
 }
+
 CONFIG = {
     "observer_fp" : [f"experiments/observer{N}LZ.pickle"],
     "points" : [N],
@@ -53,16 +54,11 @@ CONFIG = {
     "optimizer": ["AdamW"],
 
     "embedding": [4],
-    "kernel_size": [2],
-    "ms_modules": [int(np.log(N)/np.log(4)) if N >= 128 else 1],
-    "num_conv": [2],
-    "N_ms": [nms_dict[N]],
+    "hf": [[32*int(N**0.5), ]*4],
+    "tf": [3 + N//256],
     # Data
     "device": ['cuda'],
     "y_dim_emb": [(1, 5, N, 1)],
-    'obs_mask': [False], #+1 in y_dim
-    'ar': [False], #+1 in y_dim_emb (for modargs not embnet)
-    'roll':[True],
 }
 
 def process_sim(simulator):
@@ -80,7 +76,7 @@ def process_sim(simulator):
     simulator.time = (simulator.time - MUT) / SIGMAT
 
 
-@job(array=5, cpus=2, gpus=1, ram="32GB", time="2-10:00:00")
+@job(array=5, cpus=2, gpus=1, ram="32GB", time="10:00:00")
 def train_class(i: int):
     # config = {key: random.choice(values) for key, values in CONFIG.items()}
     run_idx = i%5
@@ -121,7 +117,7 @@ def train_class(i: int):
     # Sampler 
     sampler = buildSampler(**config).to(config['device'])
     pts = config["points"]
-    modelfname = f"../checkpoints/LZ/CONV/{gr}/{pts}/{run_idx}.pth"
+    modelfname = f"../checkpoints/LZ/MAF/{gr}/{pts}/{run_idx}.pth"
     state = torch.load(f"{modelfname}", map_location=torch.device(config['device']))
 
     sampler.load_state_dict(state)
@@ -224,10 +220,11 @@ def train_class(i: int):
                 )
                 # ADD HERE SAMPLES FOR NEG
                 # x_fake = model.sample...
-                x_fake = xb[sd_neg]
+
+                y = y[..., None]
+                x_fake = sampler.sample(y[sd_neg])
                 x = torch.cat((x,x_fake), dim = 0)
                 x = x[:, None, ..., None]
-                y = y[..., None]
                 
                 labels = torch.zeros((len(subset_data), 2)).to(x)
                 labels[:len(subset_data)//2, 0] = 1.

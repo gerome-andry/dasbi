@@ -8,7 +8,7 @@ import torch
 
 from tqdm import tqdm
 
-from LZ96_CONV import build
+from LZ96_MAF import build
 
 # GENERATE DATA AND OBSERVATIONS
 torch.manual_seed(42)
@@ -32,8 +32,8 @@ class myMOD(torch.nn.Module):
 n_sim = 2**10
 N = 8
 directory = "test"
-modelfname = f"experiments/{directory}/test_assim.pth"
-observerfname = "observer8LZ.pickle"
+modelfname = f"experiments/{directory}/test.pth"
+observerfname = f"observer{N}LZ.pickle"
 
 simulator = sim(N=N, noise=0.5)
 observer = ObservatorStation2D((N, 1), (3, 1), (1, 1), (2, 0), (.8, 1))
@@ -46,8 +46,8 @@ simulator.init_observer(observer)
 #     pickle.dump(observer, handle, protocol=pickle.HIGHEST_PROTOCOL)
 # observer.visualize()
 
-tmax = 10
-traj_len = tmax*10
+tmax = 50
+traj_len = 1024 
 times = torch.linspace(0, tmax, traj_len)
 
 simulator.generate_steps(torch.randn((n_sim, N)), times)
@@ -92,8 +92,8 @@ def postprocess_t(t):
 # simulator.display_sim(obs=True, delay = 10)
 
 start = 50
-finish = 55
-window = 10
+finish = 100
+window = 1
 # TRAIN A MODEL
 simulator.data = simulator.data[:, start:finish]
 simulator.obs = simulator.obs[:, start - window + 1 : finish]
@@ -116,6 +116,8 @@ config = {
     "ms_modules": 1 + N//256,
     "num_conv": 2,
     "N_ms": 2 + N//128,
+    "hf": [32*int(N**0.5), ]*4,
+    "tf": 3 + N//256,
     # Training
     "epochs": 256,
     "batch_size": 64,
@@ -152,6 +154,7 @@ config = {
 # model = myMOD(emb, model)
 # print('NSF:',sum(param.numel() for param in model.parameters()))
 
+# print(config)
 device = "cpu"
 model = build(**config).to(device)
 print('NPE:',sum(param.numel() for param in model.parameters()))
@@ -161,9 +164,9 @@ with torch.no_grad():
         simulator.data[None, None, 0, 0, :, None].to(device),
         simulator.obs[None, :window, 0, :, None].to(device),
         simulator.time[0, 0, None].to(device),
-        x_ar = simulator.data[None, None, 0, 0, :, None].to(device) if config['ar'] else None
     )
 
+# print(model)
 state = torch.load(f"{modelfname}", map_location=torch.device(device))
 
 model.load_state_dict(state)
@@ -188,7 +191,7 @@ t = t.unsqueeze(-1)
 #     x_ar = x_ar[None, None, :, None].to(device)
 
 x_s = (
-    model.sample(y.to(device), t.to(device), 2**15, max_samp=2**8, x_ar = x_ar)
+    model.sample(y.to(device), t.to(device), 2**15)#, max_samp=2**8)
     .squeeze()
     .detach()
     .cpu()
@@ -209,7 +212,7 @@ y_s = simulator.observe(x_s)
 fig = corner(y_s, smooth=2, figsize=(6.8, 6.8), legend="q(y | y*)")
 fig = corner(simulator.obs[:,window - 1], smooth = 2, legend="p(y)", figure = fig)
 
-y_star = y.squeeze()[-1] 
+y_star = y.squeeze()#[-1] 
 mark_point(fig, y_star)
 
 fig.savefig(f"experiments/{directory}/cornerNPEObs.pdf")
@@ -229,13 +232,13 @@ if config['ar']:
     x_ar = x_ar[:, None, :, None].to(device)
 
 # ASSIM :
-y = torch.cat(
-    [y[i : i + window].unsqueeze(0) for i, _ in enumerate(y[: -window + 1])], dim=0
-)
+# y = torch.cat(
+#     [y[i : i + window].unsqueeze(0) for i, _ in enumerate(y[: -window + 1])], dim=0
+# )
 # 1 STEP :
-# y = y.unsqueeze(1)
-samp = model.sample(y.to(device), t.to(device), 16, max_samp=1, x_ar = x_ar).squeeze().detach().cpu()
-
+y = y.unsqueeze(1)
+samp = model.sample(y.to(device), t.to(device), 16).squeeze().detach().cpu()
+# print(samp.shape)
 y_samp = simulator.observe(postprocess_x(samp)).mean((0))
 samp = samp[0]  # .mean((0))
 
