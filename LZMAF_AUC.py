@@ -61,6 +61,8 @@ CONFIG = {
     "y_dim_emb": [(1, 5, N, 1)],
 }
 
+y_mode = True 
+
 def process_sim(simulator):
     MUX = simulator.data.mean(dim=(0, 1))
     SIGMAX = simulator.data.std(dim=(0, 1))
@@ -87,7 +89,11 @@ def train_class(i: int):
         observer = pickle.load(handle)
 
     gr = 'step' if window == 1 else 'assim'
-    run = wandb.init(project="dasbi", config=config, group=f"LZ96_diag_{gr}")
+    if y_mode: 
+        run = wandb.init(project="dasbi", config=config, group=f"LZ96_diag_{gr}_obs")
+    else:
+        run = wandb.init(project="dasbi", config=config, group=f"LZ96_diag_{gr}")
+
     runpath = PATH / f"runs/{run.name}_{run.id}"
     runpath.mkdir(parents=True, exist_ok=True)
 
@@ -107,7 +113,10 @@ def train_class(i: int):
     process_sim(simv)
 
     # Network
-    classifier = SampleCheck(config["x_dim"], config["y_dim"], 
+    state_sz = config["x_dim"]
+    if y_mode:
+        state_sz = config["y_dim"]
+    classifier = SampleCheck(state_sz, config["y_dim"], 
                              reduce = int(np.log2(config["points"])) - 1, 
                              type = '1D').to(config['device'])
     # So we always have 2 features at the end of convolution extraction part
@@ -179,6 +188,9 @@ def train_class(i: int):
                 x_fake = sampler.sample(y[step_per_batch//2:], t[step_per_batch//2:], 1).squeeze()
     
             x = torch.cat((x,x_fake), dim = 0)
+            if y_mode:
+                x = simt.observe(x) # create true and fake observations
+
             x = x[:, None, ..., None]
             
             labels = torch.zeros((len(subset_data), 2)).to(x)
@@ -224,6 +236,8 @@ def train_class(i: int):
                 y = y[..., None]
                 x_fake = sampler.sample(y[step_per_batch//2:], t[step_per_batch//2:], 1).squeeze()
                 x = torch.cat((x,x_fake), dim = 0)
+                if y_mode:
+                    x = simt.observe(x)
                 x = x[:, None, ..., None]
                 
                 labels = torch.zeros((len(subset_data), 2)).to(x)
@@ -243,6 +257,8 @@ def train_class(i: int):
                 y = y[..., None]
                 x_fake = sampler.sample(y[lg//2:], t[lg//2:], 1).squeeze()
                 x[lg//2:] = x_fake
+                if y_mode:
+                    x = simt.observe(x)
                 x = x[:, None, ..., None]
 
                 #x_fake are same as real
