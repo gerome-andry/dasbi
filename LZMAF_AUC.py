@@ -176,7 +176,9 @@ def train_class(i: int):
             # ADD HERE SAMPLES FOR NEG
             # x_fake = model.sample...
             y = y[..., None]
-            x_fake = sampler.sample(y[sd_neg], t[sd_neg], 1).squeeze()
+            print(y.shape)
+            x_fake = sampler.sample(y[sd_neg], t[sd_neg], 1)
+            print(x_fake.shape)
             x = torch.cat((x,x_fake), dim = 0)
             x = x[:, None, ..., None]
             
