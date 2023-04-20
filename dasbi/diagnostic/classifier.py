@@ -59,7 +59,7 @@ class CombineConv(nn.Module):
 
 
 class SampleCheck(nn.Module):
-    def __init__(self, x_shape, y_shape, nc = 3, hidden_fc = 64, init_c=32, reduce=3, factor=2, type = '2D'):
+    def __init__(self, x_shape, y_shape, nc = 3, hidden_fc = 64, init_c=16, reduce=3, factor=2, type = '2D'):
         super().__init__()
         # spatial encoding
         # time embedding
@@ -75,11 +75,13 @@ class SampleCheck(nn.Module):
         if type == '1D':
             k = (k,1)
             s = (s,1)
-        self.reduce = nn.ModuleList([nn.Conv2d((2*init_c)*(factor**i), (2*init_c)*(factor**(i + 1)), k, stride = s) for i in range(reduce)])
+        self.reduce = nn.ModuleList([nn.Conv2d((2*init_c) + init_c*i, 
+                                               (2*init_c) + init_c*(i + 1), 
+                                               k, stride = s) for i in range(reduce)])
 
         in_size = torch.prod(torch.tensor(x_shape[-2:]))
-        self.head = nn.ModuleList([nn.Conv2d((2*init_c)*(factor**(reduce)), 1, 1), nn.Linear(in_size // (factor**reduce), hidden_fc)])
-        self.head.extend([nn.Linear(hidden_fc, hidden_fc) for _ in range(nc)])
+        self.head = nn.ModuleList([nn.Conv2d((2*init_c) + (init_c*reduce), 1, 1), nn.Linear(in_size // (factor**reduce), hidden_fc)])
+        self.head.extend([nn.Linear(hidden_fc, hidden_fc) for _ in range(nc - 1)])
 
         self.classify = nn.ModuleList([nn.Linear(hidden_fc, 2), nn.Softmax(dim = 1)])
 
