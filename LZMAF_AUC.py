@@ -175,10 +175,10 @@ def train_class(i: int):
             )
             # ADD HERE SAMPLES FOR NEG
             # x_fake = model.sample...
-            x_fake = xb[sd_neg]
+            y = y[..., None]
+            x_fake = sampler.sample(y[sd_neg], t[sd_neg], 1).squeeze()
             x = torch.cat((x,x_fake), dim = 0)
             x = x[:, None, ..., None]
-            y = y[..., None]
             
             labels = torch.zeros((len(subset_data), 2)).to(x)
             labels[:len(subset_data)//2, 0] = 1.
@@ -222,7 +222,7 @@ def train_class(i: int):
                 # x_fake = model.sample...
 
                 y = y[..., None]
-                x_fake = sampler.sample(y[sd_neg])
+                x_fake = sampler.sample(y[sd_neg], t[sd_neg], 1).squeeze()
                 x = torch.cat((x,x_fake), dim = 0)
                 x = x[:, None, ..., None]
                 
