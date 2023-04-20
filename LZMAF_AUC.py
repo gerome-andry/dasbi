@@ -113,10 +113,14 @@ def train_class(i: int):
     process_sim(simv)
 
     # Network
-    state_sz = config["x_dim"]
     if y_mode:
         state_sz = config["y_dim"]
-    classifier = SampleCheck(state_sz, config["y_dim"], 
+        state_sz[1] = 1
+        classifier = SampleCheck(state_sz, config["y_dim"], 
+                             reduce = int(np.log2(config["points"]//4)), 
+                             type = '1D').to(config['device'])
+    else:    
+        classifier = SampleCheck(config["x_dim"], config["y_dim"], 
                              reduce = int(np.log2(config["points"])) - 1, 
                              type = '1D').to(config['device'])
     # So we always have 2 features at the end of convolution extraction part
