@@ -29,13 +29,12 @@ SCRATCH = os.environ.get("SCRATCH", ".")
 PATH = Path(SCRATCH) / "npe_conv/lz96"
 PATH.mkdir(parents=True, exist_ok=True)
 
-# 256 - 4, 512 - 5
-# N_grid = [2**i for i in range(3,10)]
-N_grid = []
-# N_grid += [128,]*3
-N_grid += [256,]*4
-N_grid += [512,]*5
+fact = 1
+N_grid = [2**i for i in range(3,10)]
 Y_grid = [int(np.ceil(x/4)) for x in N_grid]
+lN = len(N_grid)
+window = 10
+max_epochs = 2048
 nms_dict = {
     8: 2,
     16: 2,
@@ -46,8 +45,6 @@ nms_dict = {
     512: 4,
 }
 
-lN = len(N_grid)
-window = 10
 CONFIG = {
     # Architecture
     "embedding": [3]*lN,
@@ -72,7 +69,7 @@ CONFIG = {
     # Test with assimilation window
     "x_dim": [(1, 1, sp, 1) for sp in N_grid],
     "y_dim": [(1, window, spy, 1) for spy in Y_grid],
-    "y_dim_emb": [(1, 5, sp, 1) for sp in N_grid],
+    "y_dim_emb": [(1, 16, sp, 1) for sp in N_grid],
     'obs_mask': [True]*lN, #+1 in y_dim
     'ar': [False]*lN, #+1 in y_dim_emb (for modargs not embnet)
     'roll':[True]*lN,
@@ -131,8 +128,7 @@ def process_sim(simulator):
     simulator.obs = (simulator.obs - MUY) / SIGMAY
     simulator.time = (simulator.time - MUT) / SIGMAT
 
-
-@job(array=lN, cpus=2, gpus=1, ram="32GB", time="2-12:00:00")
+@job(array=fact*lN, cpus=2, gpus=1, ram="32GB", time="3-12:00:00")
 def CONV_train(i: int):
     # config = {key: random.choice(values) for key, values in CONFIG.items()}
     config = {key : values[i%lN] for key,values in CONFIG.items()}
@@ -174,7 +170,7 @@ def CONV_train(i: int):
     step_per_batch = config["step_per_batch"]
     best = 1000
     prev_loss = best
-    time_buff = 32
+    time_buff = 256
     count = 0
     ## Optimizer
     if config["optimizer"] == "AdamW":
@@ -187,7 +183,7 @@ def CONV_train(i: int):
         raise ValueError()
 
     if config["scheduler"] == "linear":
-        lr = lambda t: 1# - (t / epochs)
+        lr = lambda t: 1 - (t / max_epochs)
     # elif config["scheduler"] == "cosine":
     #     lr = lambda t: (1 + math.cos(math.pi * t / epochs)) / 2
     # elif config["scheduler"] == "exponential":
@@ -294,7 +290,7 @@ def CONV_train(i: int):
 
         epoch += 1
 
-        if count == time_buff:
+        if count == time_buff or epoch == max_epochs:
             break
 
         scheduler.step()
