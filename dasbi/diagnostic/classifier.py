@@ -4,17 +4,26 @@ import os
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 
-def time_embed(t, space_dim):
+def time_embed(t, space_dim, features):
     h, w = space_dim
-    freq = (torch.cat([torch.arange(i, i + h // 2) for i in range(1, w + 1)]) * torch.pi).to(t)
-    t = freq * t[..., None]
-    t = t.transpose(0, 1)
-    t = torch.cat(
-        [torch.stack([tc, ts], dim=1) for tc, ts in zip(t.cos(), t.sin())], dim=-1
-    )
-    
-    t = t.reshape((-1, 1) + space_dim)
+    # freq = (torch.cat([torch.arange(i, i + h // 2) for i in range(1, w + 1)]) * torch.pi).to(t)
+    # t = freq * t[..., None]
+    # t = t.transpose(0, 1)
+    # t = torch.cat(
+    #     [torch.stack([tc, ts], dim=1) for tc, ts in zip(t.cos(), t.sin())], dim=-1
+    # )
 
+    
+    # t = t.reshape((-1, 1) + space_dim)
+    b = t.shape[0]
+    t = (
+        (2*t*torch.pi)*
+        ((torch.arange(features, dtype = torch.float) + 1)[None,...].repeat(b, 1))
+    )[:,:,None,None].repeat(1,1,h,w)
+    print(t.shape)
+
+    t[:,::2,...] = t[:,::2,...].sin()
+    t[:,1::2,...] = t[:,1::2,...].cos()
     return t
 
 
@@ -152,3 +161,16 @@ class SampleCheck(nn.Module):
 # print(labels)
 
 # print(m.AUC(None, None, None, labels))
+import matplotlib.pyplot as plt
+
+
+t = torch.linspace(0, 1, 100)
+t = t.reshape((-1, 1))
+
+t = time_embed(t, (2,2), 4)
+
+print(t.shape)
+plt.imshow(torch.cat([k for k in tm]),vmin = -1, vmax = 1)
+plt.show(block = False)
+plt.pause(.1)
+plt.clf()

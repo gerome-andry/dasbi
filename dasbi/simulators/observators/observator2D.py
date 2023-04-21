@@ -158,7 +158,9 @@ class ObservatorStation2D:
 if __name__ == "__main__":
     torch.manual_seed(42)
 
-    o = ObservatorStation2D((512, 1), (3, 3), (1, 1), (3, 3), (.75, .75))
+    o = ObservatorStation2D((8, 1), (3, 3), (1, 1), (3, 3), (.75, .75))
+    m = o.get_mask()
+    print(m, m.shape)
     A = o.get_Obs_mat()
     # print(A)
     import matplotlib.pyplot as plt

@@ -134,7 +134,7 @@ def MAF_train(i: int):
     step_per_batch = config["step_per_batch"]
     best = 1000
     prev_loss = best
-    time_buff = 32
+    time_buff = 256
     count = 0
     ## Optimizer
     if config["optimizer"] == "AdamW":
@@ -254,7 +254,7 @@ def MAF_train(i: int):
 
         epoch += 1
 
-        if count == time_buff:
+        if count == time_buff or epoch == 2048:
             break
 
         scheduler.step()

@@ -261,7 +261,7 @@ def train_class(i: int):
                 x_fake = sampler.sample(y[lg//2:], t[lg//2:], 1).squeeze()
                 x[lg//2:] = x_fake
                 if y_mode:
-                    x = simt.observe(x.cpu()).to(config['device'])
+                    x = simv.observe(x.cpu()).to(config['device'])
                 x = x[:, None, ..., None]
 
                 #x_fake are same as real
