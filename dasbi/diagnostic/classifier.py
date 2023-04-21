@@ -32,7 +32,7 @@ class TimeEmb(nn.Module):
         b = t.shape[0]
         t = (
             (t*torch.pi/2)*
-            ((torch.arange(self.features, dtype = torch.float)*2 + 1)[None,...].repeat(b, 1))
+            ((torch.arange(self.features, dtype = torch.float)*2 + 1)[None,...].repeat(b, 1).to(t))
         )[:,:,None,None].repeat(1,1,h,w)
 
         t[:,::2,...] = t[:,::2,...].sin()
