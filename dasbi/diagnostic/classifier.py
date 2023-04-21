@@ -27,6 +27,7 @@ class TimeEmb(nn.Module):
         self.features = features
 
     def forward(self, t, space_dim):
+        t = t.unsqueeze(-1)
         h, w = space_dim
         b = t.shape[0]
         t = (
