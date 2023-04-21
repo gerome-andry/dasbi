@@ -1,20 +1,20 @@
 import torch
 import torch.nn as nn
-from ..diagnostic.classifier import time_embed, pos_embed
+from ..diagnostic.classifier import TimeEmb, pos_embed
 
 class EmbedObs(nn.Module):
     def __init__(self, in_shape, out_shape, conv_lay=2, observer_mask = None, time_features = 4):
         super().__init__()
         self.x_shape = tuple(out_shape)
         self.y_shape = tuple(in_shape)
-        self.t_emb = lambda t : time_embed(t, self.x_shape[-2:], time_features)
+        self.t_emb = lambda t : TimeEmb(time_features)(t, self.x_shape[-2:])
         self.register_buffer('s_emb', pos_embed(self.x_shape[-2:]))
         self.obs = observer_mask
         self.up = nn.Upsample(tuple(self.x_shape[-2:]))
         add_chan = 2 if self.obs is None else 3 # spatial and obs_mask
-        self.combine = nn.ModuleList([nn.Conv2d(self.y_shape[1] + add_chan, 32, 1)])
-        self.combine.extend([nn.Conv2d(32, 32*(i+1), 3, padding = 1) for i in range(conv_lay)])
-        self.extract = nn.ModuleList([nn.Conv2d(32*conv_lay, 32, 1),
+        self.combine = nn.ModuleList([nn.Conv2d(self.y_shape[1] + add_chan, 16, 1)])
+        self.combine.extend([nn.Conv2d(16*(i+1), 16*(i+2), 3, padding = 1) for i in range(conv_lay)])
+        self.extract = nn.ModuleList([nn.Conv2d(16*(conv_lay+1), 32, 1),
                                       nn.Conv2d(32, self.x_shape[1] - time_features - 2, 1)])
         self.act = nn.ELU()
         # h, w = out_shape[-2:]
@@ -143,9 +143,4 @@ class EmbedObs(nn.Module):
         # return torch.cat((y_emb, t_emb), dim=1)
 
 
-if __name__ == "__main__":
-    import os
 
-    os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
-    eo = EmbedObs((1, 1, 512//4, 1), (1, 3, 512, 1))
-    print(eo(torch.randn((64,1,512//4,1)), torch.ones(64)).isnan().sum())

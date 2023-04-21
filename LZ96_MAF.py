@@ -30,13 +30,14 @@ PATH = Path(SCRATCH) / "npe_nsf/lz96"
 PATH.mkdir(parents=True, exist_ok=True)
 
 fact = 1
-N_grid = [2**i for i in range(9,10)]
+N_grid = [2**i for i in range(3,4)]
 Y_grid = [int(np.ceil(x/4)) for x in N_grid]
 lN = len(N_grid)
 window = 1
+max_epochs = 2048
 CONFIG = {
     # Architecture
-    "embedding": [4]*lN,
+    "embedding": [3]*lN,
     "hf": [[32*int(k**0.5), ]*4 for k in N_grid],
     "tf": [3 + k//256 for k in N_grid],
     # Training
@@ -56,7 +57,8 @@ CONFIG = {
     # Test with assimilation window
     "x_dim": [(1, 1, sp, 1) for sp in N_grid],
     "y_dim": [(1, window, spy, 1) for spy in Y_grid],
-    "y_dim_emb": [(1, 5, sp, 1) for sp in N_grid],
+    "y_dim_emb": [(1, 16, sp, 1) for sp in N_grid],
+    'obs_mask': [True]*lN,
     "observer_fp": [f"experiments/observer{N}LZ.pickle" for N in N_grid],
 }
 
@@ -65,6 +67,11 @@ def build(**config):
     N = config["points"]
 
     mask = None
+    if config['obs_mask']:
+        with open(config["observer_fp"], "rb") as handle:
+            observer = pickle.load(handle)
+        mask = observer.get_mask().to(config['device'])
+
     emb_out = torch.tensor(config["y_dim_emb"]) 
 
     emb_net = EmbedObs(
@@ -147,7 +154,7 @@ def MAF_train(i: int):
         raise ValueError()
 
     if config["scheduler"] == "linear":
-        lr = lambda t: 1# - (t / epochs)
+        lr = lambda t: 1 - (t / max_epochs)
     # elif config["scheduler"] == "cosine":
     #     lr = lambda t: (1 + math.cos(math.pi * t / epochs)) / 2
     # elif config["scheduler"] == "exponential":
@@ -254,7 +261,7 @@ def MAF_train(i: int):
 
         epoch += 1
 
-        if count == time_buff or epoch == 2048:
+        if count == time_buff or epoch == max_epochs:
             break
 
         scheduler.step()

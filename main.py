@@ -24,7 +24,7 @@ class myMOD(torch.nn.Module):
         super().__init__()
         self.flow = NSF
         self.emb = emb 
-
+exit()
 # for i in range(3,10):
 #     N = 2**i
 # exit()

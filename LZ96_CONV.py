@@ -50,7 +50,7 @@ lN = len(N_grid)
 window = 10
 CONFIG = {
     # Architecture
-    "embedding": [4]*lN,
+    "embedding": [3]*lN,
     "kernel_size": [2]*lN,
     "ms_modules": [int(np.log(k)/np.log(4)) if k >= 128 else 1 for k in N_grid],
     "num_conv": [2]*lN,
@@ -73,7 +73,7 @@ CONFIG = {
     "x_dim": [(1, 1, sp, 1) for sp in N_grid],
     "y_dim": [(1, window, spy, 1) for spy in Y_grid],
     "y_dim_emb": [(1, 5, sp, 1) for sp in N_grid],
-    'obs_mask': [False]*lN, #+1 in y_dim
+    'obs_mask': [True]*lN, #+1 in y_dim
     'ar': [False]*lN, #+1 in y_dim_emb (for modargs not embnet)
     'roll':[True]*lN,
     "observer_fp": [f"experiments/observer{N}LZ.pickle" for N in N_grid],
@@ -132,7 +132,7 @@ def process_sim(simulator):
     simulator.time = (simulator.time - MUT) / SIGMAT
 
 
-@job(array=lN, cpus=2, gpus=1, ram="32GB", time="1-12:00:00")
+@job(array=lN, cpus=2, gpus=1, ram="32GB", time="2-12:00:00")
 def CONV_train(i: int):
     # config = {key: random.choice(values) for key, values in CONFIG.items()}
     config = {key : values[i%lN] for key,values in CONFIG.items()}

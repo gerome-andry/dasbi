@@ -4,29 +4,6 @@ import os
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 
-def time_embed(t, space_dim, features):
-    h, w = space_dim
-    # freq = (torch.cat([torch.arange(i, i + h // 2) for i in range(1, w + 1)]) * torch.pi).to(t)
-    # t = freq * t[..., None]
-    # t = t.transpose(0, 1)
-    # t = torch.cat(
-    #     [torch.stack([tc, ts], dim=1) for tc, ts in zip(t.cos(), t.sin())], dim=-1
-    # )
-
-    
-    # t = t.reshape((-1, 1) + space_dim)
-    b = t.shape[0]
-    t = (
-        (2*t*torch.pi)*
-        ((torch.arange(features, dtype = torch.float) + 1)[None,...].repeat(b, 1))
-    )[:,:,None,None].repeat(1,1,h,w)
-    print(t.shape)
-
-    t[:,::2,...] = t[:,::2,...].sin()
-    t[:,1::2,...] = t[:,1::2,...].cos()
-    return t
-
-
 def pos_embed(space_dim):
     h = (
         torch.pi
@@ -42,6 +19,25 @@ def pos_embed(space_dim):
     )
 
     return torch.cat((h.sin(), w.sin()), dim=1)
+
+
+class TimeEmb(nn.Module):
+    def __init__(self, features):
+        super().__init__()
+        self.features = features
+
+    def forward(self, t, space_dim):
+        h, w = space_dim
+        b = t.shape[0]
+        t = (
+            (t*torch.pi/2)*
+            ((torch.arange(self.features, dtype = torch.float)*2 + 1)[None,...].repeat(b, 1))
+        )[:,:,None,None].repeat(1,1,h,w)
+
+        t[:,::2,...] = t[:,::2,...].sin()
+        t[:,1::2,...] = t[:,1::2,...].cos()
+
+        return t
 
 
 class CombineConv(nn.Module):
@@ -68,15 +64,16 @@ class CombineConv(nn.Module):
 
 
 class SampleCheck(nn.Module):
-    def __init__(self, x_shape, y_shape, nc = 3, hidden_fc = 64, init_c=16, reduce=3, factor=2, type = '2D'):
+    def __init__(self, x_shape, y_shape, nc = 3, hidden_fc = 64, init_c=16, reduce=3, factor=2, type = '2D', time_feat = 4):
         super().__init__()
         # spatial encoding
         # time embedding
-        add_chan = 2 + 1  # spatial encoding + time encoding
+        add_chan = 2 + time_feat  # spatial encoding + time encoding
         self.extend_y = nn.ModuleList(
             [nn.Upsample(x_shape[-2:]), nn.Conv2d(y_shape[1] + add_chan, init_c, 1)]
         )
         self.act = nn.ELU()
+        self.t_emb = TimeEmb(time_feat)
         self.combine_x = nn.Conv2d(x_shape[1] + add_chan, init_c, 1)
         self.extract = nn.ModuleList([CombineConv((2*init_c) + init_c*i, nc, type = type) for i in range(reduce)])
         k = factor
@@ -97,8 +94,8 @@ class SampleCheck(nn.Module):
     def forward(self, x, y, t):
         sp_x = pos_embed(x.shape[-2:]).expand(x.shape[0], -1, -1, -1).to(x)
         sp_y = pos_embed(y.shape[-2:]).expand(y.shape[0], -1, -1, -1).to(x)
-        t_x = time_embed(t, x.shape[-2:])
-        t_y = time_embed(t, y.shape[-2:])
+        t_x = self.t_emb(t, x.shape[-2:])
+        t_y = self.t_emb(t, y.shape[-2:])
         x_in = torch.cat((t_x, sp_x, x), dim = 1)
         y_in = torch.cat((t_y, sp_y, y), dim = 1)
 
@@ -128,9 +125,6 @@ class SampleCheck(nn.Module):
     
     def AUC(self, x, y, t, labels, levels = 100):
         logits = self(x,y,t)
-        # logits = nn.functional.softmax(torch.rand_like(labels), dim = 1)#labels.clone()
-        # logits[0,0] = .8
-        # logits[0,1] = .2
         thresholds = torch.linspace(0,1,levels)
         fpr = [0, 1]
         tpr = [0, 1]
@@ -144,13 +138,10 @@ class SampleCheck(nn.Module):
             fn = N - (fp + tp + tn)
             tpr.append(tp/(tp + fn))
             fpr.append(fp/(tn + fp))
-            # print(tpr[-1], fpr[-1])
 
         fpr, indices = torch.sort(torch.tensor(fpr))
         tpr = torch.tensor(tpr)[indices]
-        # import matplotlib.pyplot as plt 
-        # plt.plot(fpr, tpr)
-        # plt.show()
+
         return fpr, tpr, torch.trapezoid(tpr, fpr)
     
 
@@ -161,16 +152,18 @@ class SampleCheck(nn.Module):
 # print(labels)
 
 # print(m.AUC(None, None, None, labels))
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 
-t = torch.linspace(0, 1, 100)
-t = t.reshape((-1, 1))
+# t = torch.linspace(0, 1, 100)
+# t = t.reshape((-1, 1))
 
-t = time_embed(t, (2,2), 4)
+# feat = 50
+# t = time_embed(t, (2,2), feat)
 
-print(t.shape)
-plt.imshow(torch.cat([k for k in tm]),vmin = -1, vmax = 1)
-plt.show(block = False)
-plt.pause(.1)
-plt.clf()
+# print(t.shape)
+
+# plt.imshow(t[...,0,0],vmin = -1, vmax = 1)
+# plt.show(block = True)
+# plt.pause(.1)
+# plt.clf()
