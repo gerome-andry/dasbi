@@ -30,10 +30,10 @@ PATH = Path(SCRATCH) / "npe_nsf/lz96"
 PATH.mkdir(parents=True, exist_ok=True)
 
 fact = 1
-N_grid = [2**i for i in range(3,4)]
+N_grid = [2**i for i in range(3,10)]
 Y_grid = [int(np.ceil(x/4)) for x in N_grid]
 lN = len(N_grid)
-window = 1
+window = 10
 max_epochs = 2048
 CONFIG = {
     # Architecture
