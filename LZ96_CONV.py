@@ -29,7 +29,7 @@ SCRATCH = os.environ.get("SCRATCH", ".")
 PATH = Path(SCRATCH) / "npe_conv/lz96"
 PATH.mkdir(parents=True, exist_ok=True)
 
-fact = 1
+fact = 5
 N_grid = [2**i for i in range(3,10)]
 Y_grid = [int(np.ceil(x/4)) for x in N_grid]
 lN = len(N_grid)
@@ -69,7 +69,7 @@ CONFIG = {
     # Test with assimilation window
     "x_dim": [(1, 1, sp, 1) for sp in N_grid],
     "y_dim": [(1, window, spy, 1) for spy in Y_grid],
-    "y_dim_emb": [(1, 16, sp, 1) for sp in N_grid],
+    "y_dim_emb": [(1, 11, sp, 1) for sp in N_grid],
     'obs_mask': [True]*lN, #+1 in y_dim
     'ar': [False]*lN, #+1 in y_dim_emb (for modargs not embnet)
     'roll':[True]*lN,

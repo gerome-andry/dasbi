@@ -57,7 +57,7 @@ CONFIG = {
     # Test with assimilation window
     "x_dim": [(1, 1, sp, 1) for sp in N_grid],
     "y_dim": [(1, window, spy, 1) for spy in Y_grid],
-    "y_dim_emb": [(1, 16, sp, 1) for sp in N_grid],
+    "y_dim_emb": [(1, 11, sp, 1) for sp in N_grid],
     'obs_mask': [True]*lN,
     "observer_fp": [f"experiments/observer{N}LZ.pickle" for N in N_grid],
 }
