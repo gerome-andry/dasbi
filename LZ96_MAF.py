@@ -45,7 +45,7 @@ CONFIG = {
     "batch_size": [128]*lN,
     "step_per_batch": [512]*lN,
     "optimizer": ["AdamW"]*lN,
-    "learning_rate": [3e-3]*lN,  
+    "learning_rate": [1e-2]*lN,  
     "weight_decay": [1e-4]*lN,  
     "scheduler": ["linear"]*lN, 
     # Data
@@ -253,7 +253,7 @@ def MAF_train(i: int):
             prev_loss = loss_val
             torch.save(
                 conv_npe.state_dict(),
-                runpath / f"checkpoint_{epoch:04d}.pth",
+                runpath / f"checkpoint.pth",
             )
             count = 0
         else:
