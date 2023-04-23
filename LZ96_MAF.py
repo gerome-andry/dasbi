@@ -45,7 +45,7 @@ CONFIG = {
     "batch_size": [128]*lN,
     "step_per_batch": [512]*lN,
     "optimizer": ["AdamW"]*lN,
-    "learning_rate": [1e-2]*lN,  
+    "learning_rate": [5e-3]*lN,  
     "weight_decay": [1e-4]*lN,  
     "scheduler": ["linear"]*lN, 
     # Data
