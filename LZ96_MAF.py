@@ -154,7 +154,7 @@ def MAF_train(i: int):
         raise ValueError()
 
     if config["scheduler"] == "linear":
-        lr = lambda t: 1 - (t / max_epochs)
+        lr = lambda t: 1 - (t / (1.5*max_epochs))
     # elif config["scheduler"] == "cosine":
     #     lr = lambda t: (1 + math.cos(math.pi * t / epochs)) / 2
     # elif config["scheduler"] == "exponential":
@@ -200,7 +200,9 @@ def MAF_train(i: int):
             optimizer.zero_grad()
             l = conv_npe.loss(x, y, t)
             l.backward()
-            optimizer.step()
+            norm = torch.nn.utils.clip_grad_norm_(conv_npe.embed.parameters())
+            if torch.isfinite(norm):
+                optimizer.step()
 
             losses_train.append(l.detach())
 

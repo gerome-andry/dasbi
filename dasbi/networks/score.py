@@ -125,5 +125,5 @@ class ScoreAttUNet(nn.Module):
         return x
     
 
-m = ScoreAttUNet(depth = 3, type = '2D', input_c = 5, output_c = 2, spatial_scale=2, n_c = 2, input_hidden=64)
-print(m)
+# m = ScoreAttUNet(depth = 3, type = '2D', input_c = 5, output_c = 2, spatial_scale=2, n_c = 2, input_hidden=64)
+# print(m)

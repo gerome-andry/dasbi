@@ -1,22 +1,44 @@
 from ..networks.nfmodules import MSConv
+from ..networks.score import ScoreAttUNet
 import torch
 import torch.nn as nn
 import numpy as np
 from tqdm import trange
+import math
+
+class ScorePosterior(nn.Module):
+    def __init__(self, emb_net, eps = 1e-3, **score_args):
+        self.score = ScoreAttUNet(**score_args)
+        self.alpha = lambda t : torch.cos(math.acos(math.sqrt(eps))*t)**2
+        self.embed = emb_net
+        # self.epsilon = eps 
+
+    def mu(self, t):
+        return self.alpha(t)
+
+    def sigma(self, t):
+        return (1 - self.alpha(t) ** 2).sqrt()
+    
+    def forward(self, x, t):
+        z = torch.randn_like(x)
+        x = self.mu(t)*x + self.sigma(t)*z
+
+        return x, -z #sample x_t from p(x_t|x), rescaled target N(0,I)
+
 
 class MafNPE(nn.Module):
     def __init__(self, emb, NSF):
         super().__init__()
         self.flow = NSF
-        self.emb = emb
+        self.embed = emb
     
     def forward(self, x, y, t):
-        y_t = self.emb(y,t)
+        y_t = self.embed(y,t)
         batch = x.shape[0]
         return self.flow(x.reshape((batch, -1)), y_t.reshape(batch, -1))
 
     def sample(self, y, t, n):
-        y_t = self.emb(y,t)
+        y_t = self.embed(y,t)
         batch = y_t.shape[0]
         return self.flow.flow(y_t.reshape((batch, -1))).sample((n,))
     
