@@ -89,7 +89,7 @@ class EmbedObs(nn.Module):
             mask = self.obs[None, None, ...].expand(b, -1, -1, -1)
             y_emb = torch.cat((y_emb,mask), dim = 1)
         
-        y_emb = self.act(c[0](y_emb))
+        y_emb = self.act(self.combine[0](y_emb))
         if y_emb.isnan().sum() > 0:
             print("COMB INIT",y_emb.isnan().sum())
             y_emb = y_emb.nan_to_num()
@@ -99,7 +99,7 @@ class EmbedObs(nn.Module):
             if y_emb.isnan().sum() > 0:
                 print("COMB",y_emb.isnan().sum())
                 y_emb = y_emb.nan_to_num()
-        
+
         for e in self.extract:
             y_emb = e(y_emb)
             if y_emb.isnan().sum() > 0:
