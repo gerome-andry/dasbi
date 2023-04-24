@@ -13,7 +13,7 @@ class EmbedObs(nn.Module):
         self.up = nn.Upsample(tuple(self.x_shape[-2:]))
         add_chan = 2 if self.obs is None else 3 # spatial and obs_mask
         self.combine = nn.ModuleList([nn.Conv2d(self.y_shape[1] + add_chan, 16, 1)])
-        self.combine.extend([nn.Conv2d(16*(i+1), 16*(i+2), 3, padding = 1) for i in range(conv_lay)])
+        self.combine.extend([nn.Conv2d(16*(i+1), 16*(i+1), 3, padding = 1) for i in range(conv_lay)])
         self.extract = nn.ModuleList([nn.Conv2d(16*(conv_lay+1), 32, 1),
                                       nn.Conv2d(32, self.x_shape[1] - time_features - 2, 1)])
         self.act = nn.ELU()
@@ -80,15 +80,31 @@ class EmbedObs(nn.Module):
         spy = pos_embed(y.shape[-2:]).expand(b, -1, -1, -1).to(y)
         y_emb = torch.cat((spy,y), dim = 1)
         y_emb = self.up(y_emb)
+        
+        if y_emb.isnan().sum() > 0:
+            print("UP",y_emb.isnan().sum())
+            y_emb = y_emb.nan_to_num()
+
         if self.obs is not None:
             mask = self.obs[None, None, ...].expand(b, -1, -1, -1)
             y_emb = torch.cat((y_emb,mask), dim = 1)
         
-        for c in self.combine:
-            y_emb = self.act(c(y_emb))
-
+        y_emb = self.act(c[0](y_emb))
+        if y_emb.isnan().sum() > 0:
+            print("COMB INIT",y_emb.isnan().sum())
+            y_emb = y_emb.nan_to_num()
+        y1 = y_emb.clone()
+        for c in self.combine[1:]:
+            y_emb = self.act(c(torch.cat((y1, y_emb), dim = 1)))
+            if y_emb.isnan().sum() > 0:
+                print("COMB",y_emb.isnan().sum())
+                y_emb = y_emb.nan_to_num()
+        
         for e in self.extract:
             y_emb = e(y_emb)
+            if y_emb.isnan().sum() > 0:
+                print("EXT",y_emb.isnan().sum())
+                y_emb = y_emb.nan_to_num()
 
         return torch.cat((t_emb, space_emb, y_emb), dim = 1)
         # t_emb = self.time_embed(t)
