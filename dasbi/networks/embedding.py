@@ -13,7 +13,7 @@ class EmbedObs(nn.Module):
         self.up = nn.Upsample(tuple(self.x_shape[-2:]))
         add_chan = 2 if self.obs is None else 3 # spatial and obs_mask
         self.combine = nn.ModuleList([nn.Conv2d(self.y_shape[1] + add_chan, 16, 1)])
-        self.combine.extend([nn.Conv2d(16*(i+1), 16*(i+1), 3, padding = 1) for i in range(conv_lay)])
+        self.combine.extend([nn.Conv2d(16*(i+2), 16*(i+2), 3, padding = 1) for i in range(conv_lay)])
         self.extract = nn.ModuleList([nn.Conv2d(16*(conv_lay+1), 32, 1),
                                       nn.Conv2d(32, self.x_shape[1] - time_features - 2, 1)])
         self.act = nn.ELU()
