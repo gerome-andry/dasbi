@@ -8,22 +8,26 @@ import math
 
 class ScorePosterior(nn.Module):
     def __init__(self, emb_net, eps = 1e-3, **score_args):
-        self.score = ScoreAttUNet(**score_args)
+        self.score = ScoreAttUNet(**score_args) # condition in the score input
         self.alpha = lambda t : torch.cos(math.acos(math.sqrt(eps))*t)**2
         self.embed = emb_net
-        # self.epsilon = eps 
+        self.epsilon = eps 
 
     def mu(self, t):
         return self.alpha(t)
 
     def sigma(self, t):
-        return (1 - self.alpha(t) ** 2).sqrt()
+        return (1 - self.alpha(t) ** 2 + self.epsilon**2).sqrt()
     
-    def forward(self, x, t):
+    def forward(self, x, t):# x -> shape of x
         z = torch.randn_like(x)
         x = self.mu(t)*x + self.sigma(t)*z
 
         return x, -z #sample x_t from p(x_t|x), rescaled target N(0,I)
+    
+    def loss(self, x):
+        t = torch.rand(x.shape[0]).to(x)
+
 
 
 class MafNPE(nn.Module):

@@ -60,7 +60,7 @@ class downUpLayer(nn.Module):
 class ScoreAttUNet(nn.Module):
     def __init__(self, input_c = 1, output_c = 1, depth = 3, 
                 input_hidden = 64, spatial_scale = 2, n_c = 2, 
-                ks = 3, type = '2D'):
+                ks = 3, type = '2D', temporal = 5):
         super().__init__()
 
     #CREATION
@@ -73,14 +73,14 @@ class ScoreAttUNet(nn.Module):
         if type == '1D':
             ks = (ks, 1)
         
-        input_c += 1 #for time embedding
+        input_c += temporal #for time embedding
         # input_scale = input_hidden/input_c
         self.down.append(downUpLayer(input_c, input_hidden, n_c = n_c, kernel_sz = ks))
         nextLayC = input_hidden
         self.att_skip.extend([AttentionSkip(chan = nextLayC * spatial_scale ** i, type = type, factor = spatial_scale)
                             for i in range(depth - 1)])
         # + 1 in dow path for time embedding
-        self.down.extend([downUpLayer(nextLayC * spatial_scale ** i + 1, nextLayC * spatial_scale ** (i+1), n_c = n_c, kernel_sz = ks)
+        self.down.extend([downUpLayer(nextLayC * spatial_scale ** i + temporal, nextLayC * spatial_scale ** (i+1), n_c = n_c, kernel_sz = ks)
                             for i in range(depth - 1)])
         c = ((spatial_scale) if type == '2D' else (spatial_scale,1))
         self.pool.extend([nn.Conv2d(nextLayC * spatial_scale ** i, nextLayC * spatial_scale ** i, c, stride = c)

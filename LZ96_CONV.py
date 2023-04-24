@@ -229,7 +229,7 @@ def CONV_train(i: int):
             optimizer.zero_grad()
             l = conv_npe.loss(x, y, t)
             l.backward()
-            norm = torch.nn.utils.clip_grad_norm_(conv_npe.embed.parameters())
+            norm = torch.nn.utils.clip_grad_norm_(conv_npe.embed.parameters(), 1)
             if torch.isfinite(norm):
                 optimizer.step()
             
