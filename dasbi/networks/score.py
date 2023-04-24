@@ -1,6 +1,6 @@
 import torch 
 import torch.nn as nn 
-from ..diagnostic.classifier import time_embed    
+from ..diagnostic.classifier import TimeEmb    
 
 class LayerNorm(nn.Module):
     def __init__(self, dim, eps = 1e-5):
