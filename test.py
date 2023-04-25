@@ -24,7 +24,7 @@ if __name__ == "__main__":
             # Architecture
             "embedding": 3,
             "depth": dp[N],
-            "input_h": 32,
+            "input_h": 45 + int(np.log2(N)),
             # Training
             # "epochs": [512]*lN,
             "batch_size": 128,
@@ -52,3 +52,5 @@ if __name__ == "__main__":
         m = build(**CONFIG)
         # print(m)
         print('NSE:',sum(param.numel() for param in m.parameters()))
+    # print(m)
+    # m(torch.zeros(CONFIG["x_dim"]), torch.ones((1,1)))

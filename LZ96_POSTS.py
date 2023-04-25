@@ -50,7 +50,7 @@ CONFIG = {
     # Architecture
     "embedding": [3]*lN,
     "depth": [dp[k] for k in N_grid],
-    "input_h": [32]*lN,
+    "input_h": [45 + int(np.log2(k)) for k in N_grid],
     # Training
     # "epochs": [512]*lN,
     "batch_size": [128]*lN,
