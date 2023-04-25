@@ -30,7 +30,7 @@ PATH = Path(SCRATCH) / "npe_conv/lz96"
 PATH.mkdir(parents=True, exist_ok=True)
 
 fact = 5
-N_grid = [2**i for i in range(3,10)]
+N_grid = [2**i for i in range(6,7)]
 Y_grid = [int(np.ceil(x/4)) for x in N_grid]
 lN = len(N_grid)
 window = 10
@@ -45,11 +45,20 @@ nms_dict = {
     512: 4,
 }
 
+ms_mod = {
+    8: 1,
+    16: 1,
+    32: 1,
+    64: 2,
+    128: 3,
+    256: 4,
+    512: 4,
+}
 CONFIG = {
     # Architecture
     "embedding": [3]*lN,
     "kernel_size": [2]*lN,
-    "ms_modules": [int(np.log(k)/np.log(4)) if k >= 128 else 1 for k in N_grid],
+    "ms_modules": [ms_mod[k] k in N_grid],
     "num_conv": [2]*lN,
     "N_ms": [nms_dict[k] for k in N_grid],
     # Training

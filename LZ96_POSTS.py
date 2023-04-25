@@ -36,11 +36,20 @@ lN = len(N_grid)
 window = 10
 max_epochs = 2048
 
+dp = {
+    8 : 2,
+    16 : 2,
+    32 : 2,
+    64 : 3,
+    128 : 3,
+    256 : 3,
+    512 : 4
+}
 
 CONFIG = {
     # Architecture
     "embedding": [3]*lN,
-    "depth": [int(np.log2(k)) - 1 for k in N_grid],
+    "depth": [dp[k] for k in N_grid],
     "input_h": [32]*lN,
     # Training
     # "epochs": [512]*lN,
