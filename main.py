@@ -8,7 +8,7 @@ import torch
 
 from tqdm import tqdm
 
-from LZ96_MAF import build
+from LZ96_CONV import build
 
 # GENERATE DATA AND OBSERVATIONS
 torch.manual_seed(42)
@@ -18,13 +18,14 @@ import pickle
 from lampe.inference import NPE     
 from zuko.flows import NSF 
 from dasbi.networks.embedding import EmbedObs
+import numpy as np 
 
 class myMOD(torch.nn.Module):
     def __init__(self, emb, NSF):
         super().__init__()
         self.flow = NSF
         self.emb = emb 
-exit()
+# exit()
 # for i in range(3,10):
 #     N = 2**i
 # exit()
@@ -93,7 +94,7 @@ def postprocess_t(t):
 
 start = 50
 finish = 100
-window = 1
+window = 10
 # TRAIN A MODEL
 simulator.data = simulator.data[:, start:finish]
 simulator.obs = simulator.obs[:, start - window + 1 : finish]
@@ -110,9 +111,20 @@ base = Unconditional(
     buffer=True,
 )
 
+nms_dict = {
+    8: 2,
+    16: 2,
+    32: 2,
+    64: 3,
+    128: 3,
+    256: 4,
+    512: 4,
+}
 config = {
-    "embedding": 4,
+    "embedding": 3,
     "kernel_size": 2,
+    "ms_modules": int(np.log(N)/np.log(4)) if N >= 128 else 1,
+    "N_ms": nms_dict[N],
     "ms_modules": 1 + N//256,
     "num_conv": 2,
     "N_ms": 2 + N//128,
@@ -135,8 +147,8 @@ config = {
     # Test with assimilation window
     "x_dim": (1, 1, N, 1),
     "y_dim": (1, window, N//4, 1),
-    "y_dim_emb": (1, 5, N, 1),
-    'obs_mask': False,
+    "y_dim_emb": (1, 11, N, 1),
+    'obs_mask': True,
     'roll': True,
     'ar': False,
     "observer_fp": f"experiments/{observerfname}",
@@ -191,7 +203,7 @@ t = t.unsqueeze(-1)
 #     x_ar = x_ar[None, None, :, None].to(device)
 
 x_s = (
-    model.sample(y.to(device), t.to(device), 2**15)#, max_samp=2**8)
+    model.sample(y.to(device), t.to(device), 2**15, max_samp=2**10)
     .squeeze()
     .detach()
     .cpu()
@@ -208,11 +220,17 @@ mark_point(fig, x_star)
 
 fig.savefig(f"experiments/{directory}/cornerNPESim.pdf")
 
+fig = corner(x_s[:, points], smooth=2, figsize=(6.8, 6.8), legend="q(x | y*)")
+x_star = x.squeeze()[points]
+mark_point(fig, x_star)
+
+fig.savefig(f"experiments/{directory}/cornerNPESimPost.pdf")
+
 y_s = simulator.observe(x_s)
 fig = corner(y_s, smooth=2, figsize=(6.8, 6.8), legend="q(y | y*)")
 fig = corner(simulator.obs[:,window - 1], smooth = 2, legend="p(y)", figure = fig)
 
-y_star = y.squeeze()#[-1] 
+y_star = y.squeeze()[-1] 
 mark_point(fig, y_star)
 
 fig.savefig(f"experiments/{directory}/cornerNPEObs.pdf")
@@ -226,21 +244,21 @@ if config['ar']:
 
 x_ar = None
 y = ygt[..., None]
-t = tgt.unsqueeze(1)
+t = tgt#.unsqueeze(1)
 if config['ar']:
     x_ar = simulator.data[0,:-1]
     x_ar = x_ar[:, None, :, None].to(device)
 
 # ASSIM :
-# y = torch.cat(
-#     [y[i : i + window].unsqueeze(0) for i, _ in enumerate(y[: -window + 1])], dim=0
-# )
+y = torch.cat(
+    [y[i : i + window].unsqueeze(0) for i, _ in enumerate(y[: -window + 1])], dim=0
+)
 # 1 STEP :
-y = y.unsqueeze(1)
-samp = model.sample(y.to(device), t.to(device), 16).squeeze().detach().cpu()
+# y = y.unsqueeze(1)
+samp = model.sample(y.to(device), t.to(device), 2**10).squeeze().detach().cpu()
 # print(samp.shape)
 y_samp = simulator.observe(postprocess_x(samp)).mean((0))
-samp = samp[0]  # .mean((0))
+samp = samp.mean(0)
 
 simulator.data = postprocess_x(samp[None, ...])
 simulator.obs = y_samp[None, ...]

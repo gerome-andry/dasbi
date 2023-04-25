@@ -6,8 +6,9 @@ import numpy as np
 from tqdm import trange
 import math
 
-class ScorePosterior(nn.Module):
+class VPScorePosterior(nn.Module):
     def __init__(self, emb_net, eps = 1e-3, **score_args):
+        super().__init__()
         self.score = ScoreAttUNet(**score_args) # condition in the score input
         self.alpha = lambda t : torch.cos(math.acos(math.sqrt(eps))*t)**2
         self.embed = emb_net
@@ -25,8 +26,12 @@ class ScorePosterior(nn.Module):
 
         return x, -z #sample x_t from p(x_t|x), rescaled target N(0,I)
     
-    def loss(self, x):
-        t = torch.rand(x.shape[0]).to(x)
+    def loss(self, x, y, t):
+        noise_t = torch.rand((x.shape[0],1)).to(x)
+        y_emb = self.embed(y, t)
+        x, scaled_target = self(x, noise_t)
+
+        return (self.score(torch.cat((y_emb, x), dim = 1), noise_t) - scaled_target).square().mean()
 
 
 
@@ -102,9 +107,9 @@ class ConvNPE(nn.Module):
         y_dim = y.shape
         t_dim = t.shape
         x_s = []
-        n_iter = int(np.ceil(n/max_samp))
+        n_iter = 1 if max_samp is None else int(np.ceil(n/max_samp))
         for _ in trange(n_iter):
-            ns = int(np.minimum(n, max_samp if max_samp is not None else np.inf))
+            ns = int(np.minimum(n, (max_samp if max_samp is not None else np.inf)))
             y_t = y.unsqueeze(0).expand(ns, -1, -1, -1, -1).reshape((-1,) + y_dim[1:])
             t_t = t.unsqueeze(0).expand(ns, -1, -1).reshape((-1,) + t_dim[1:])
             z = self.base_dist().sample((ns * y_dim[0],))

@@ -20,7 +20,7 @@ class AttentionSkip(nn.Module):
         self.scale_dpath = nn.Conv2d(chan, chan, k, stride = k)
         self.act = nn.ELU()
         self.up = nn.Upsample(scale_factor = k)
-        self.combine = nn.Conv2d(chan, chan, 1, 1)
+        self.combine = nn.Conv2d(chan, chan, 1)
         self.att_weights = nn.Sigmoid()
         
     def spatialSoftMax(self, x):
@@ -46,7 +46,8 @@ class downUpLayer(nn.Module):
             p = (kernel_sz - 1)//2
 
         self.conv = nn.ModuleList([nn.Conv2d(input_c if i == 0 else output_c, output_c, 
-                                             kernel_sz, padding = p) for i in range(n_c)])
+                                             kernel_sz, padding = p,
+                                             padding_mode = 'circular') for i in range(n_c)])
 
     def forward(self, x):
         x = self.ln(x)
@@ -64,6 +65,7 @@ class ScoreAttUNet(nn.Module):
         super().__init__()
 
     #CREATION
+        self.time_embed = TimeEmb(temporal)
         self.down = nn.ModuleList()
         self.up = nn.ModuleList()
         self.reduceChannel = nn.ModuleList()
@@ -105,13 +107,13 @@ class ScoreAttUNet(nn.Module):
     def forward(self, x, k): #x contains x_k and context ; k is the score time index [0, 1]
         x_skip = []
         for d,p in zip(self.down[:-1], self.pool):
-            k_emb = time_embed(k, x.shape[-2:])
+            k_emb = self.time_embed(k, x.shape[-2:])
             x = torch.cat((x, k_emb), 1)
             x = d(x)
             x_skip.append(x)
             x = p(x)
         
-        k_emb = time_embed(k, x.shape[-2:])
+        k_emb = self.time_embed(k, x.shape[-2:])
         x = torch.cat((x, k_emb), 1)
         x = self.down[-1](x)
         for i,u in enumerate(self.up):
