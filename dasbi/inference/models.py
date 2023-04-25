@@ -22,14 +22,15 @@ class VPScorePosterior(nn.Module):
     
     def forward(self, x, t):# x -> shape of x
         z = torch.randn_like(x)
-        x = self.mu(t)*x + self.sigma(t)*z
+        x = self.mu(t[...,None,None,None])*x + self.sigma(t[...,None,None,None])*z
 
         return x, -z #sample x_t from p(x_t|x), rescaled target N(0,I)
     
     def loss(self, x, y, t):
-        noise_t = torch.rand((x.shape[0],1)).to(x)
+        noise_t = torch.rand((x.shape[0])).to(x)
         y_emb = self.embed(y, t)
         x, scaled_target = self(x, noise_t)
+        # print(x.shape, y_emb.shape)
 
         return (self.score(torch.cat((y_emb, x), dim = 1), noise_t) - scaled_target).square().mean()
 

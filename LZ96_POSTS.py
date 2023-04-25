@@ -266,7 +266,7 @@ def Score_train(i: int):
         )
 
         ### Checkpoint
-        if (prev_loss - loss_val) > 5e-2:
+        if (prev_loss - loss_val) > 1e-3:
             prev_loss = loss_val
             # torch.save(
             #     conv_npe.state_dict(),

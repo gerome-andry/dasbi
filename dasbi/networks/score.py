@@ -41,7 +41,7 @@ class downUpLayer(nn.Module):
         self.ln = LayerNorm((-2, -1))
         
         if type(kernel_sz) is tuple:
-            p = ((kernel_sz[0] - 1)//2,1)
+            p = ((kernel_sz[0] - 1)//2,0)
         else:
             p = (kernel_sz - 1)//2
 
@@ -117,9 +117,9 @@ class ScoreAttUNet(nn.Module):
         x = torch.cat((x, k_emb), 1)
         x = self.down[-1](x)
         for i,u in enumerate(self.up):
-            x = self.fullScaleUp(x, i)
-            xFull = torch.cat((self.att_skip[-(i+1)](x_skip[-(i+1)], x)), 1)
-            x = u(xFull)
+            x = self.reduceChannel[i](x)
+            x = torch.cat((self.att_skip[-(i+1)](x_skip[-(i+1)], x), self.upSample(x)), 1)
+            x = u(x)
 
         x = self.reduceChannel[-1](x)
         x = self.tail(x)
