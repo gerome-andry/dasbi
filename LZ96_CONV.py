@@ -58,7 +58,7 @@ CONFIG = {
     # Architecture
     "embedding": [3]*lN,
     "kernel_size": [2]*lN,
-    "ms_modules": [ms_mod[k] k in N_grid],
+    "ms_modules": [ms_mod[k] for k in N_grid],
     "num_conv": [2]*lN,
     "N_ms": [nms_dict[k] for k in N_grid],
     # Training
