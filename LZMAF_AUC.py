@@ -212,7 +212,7 @@ def train_class(i: int):
         ### Valid
         k = np.random.choice(
             len(simv.data),
-            size=batch_size // 4,
+            size=batch_size // 2,
             replace=False,
         )
 

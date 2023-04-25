@@ -22,12 +22,14 @@ from dasbi.simulators.sim_lorenz96 import LZ96 as sim
 from dasbi.diagnostic.classifier import SampleCheck
 from LZ96_CONV import build as buildSampler
 
-SCRATCH = os.environ.get("SCRATCH", ".")
-PATH = Path(SCRATCH) / "auc/lz96/conv_npe"
-PATH.mkdir(parents=True, exist_ok=True)
+# SCRATCH = os.environ.get("SCRATCH", ".")
+# PATH = Path(SCRATCH) / "auc/lz96/conv_npe"
+# PATH.mkdir(parents=True, exist_ok=True)
 
-window = 1
+window = 10
 N = 8
+y_mode = False 
+
 # N_grid = [2**i for i in range(3,10)]
 # lN = len(N_grid)
 nms_dict = {
@@ -35,6 +37,15 @@ nms_dict = {
     16: 2,
     32: 2,
     64: 3,
+    128: 3,
+    256: 4,
+    512: 4,
+}
+ms_mod = {
+    8: 1,
+    16: 1,
+    32: 1,
+    64: 2,
     128: 3,
     256: 4,
     512: 4,
@@ -52,15 +63,15 @@ CONFIG = {
     "step_per_batch": [512],
     "optimizer": ["AdamW"],
 
-    "embedding": [4],
+    "embedding": [3],
     "kernel_size": [2],
-    "ms_modules": [int(np.log(N)/np.log(4)) if N >= 128 else 1],
+    "ms_modules": [ms_mod[N]],
     "num_conv": [2],
     "N_ms": [nms_dict[N]],
     # Data
     "device": ['cuda'],
-    "y_dim_emb": [(1, 5, N, 1)],
-    'obs_mask': [False], #+1 in y_dim
+    "y_dim_emb": [(1, 11, N, 1)],
+    'obs_mask': [True], #+1 in y_dim
     'ar': [False], #+1 in y_dim_emb (for modargs not embnet)
     'roll':[True],
 }
@@ -92,8 +103,8 @@ def train_class(i: int):
 
     gr = 'step' if window == 1 else 'assim'
     run = wandb.init(project="dasbi", config=config, group=f"LZ96_diag_{gr}")
-    runpath = PATH / f"runs/{run.name}_{run.id}"
-    runpath.mkdir(parents=True, exist_ok=True)
+    # runpath = PATH / f"runs/{run.name}_{run.id}"
+    # runpath.mkdir(parents=True, exist_ok=True)
 
     # Data
     tmax = 50
@@ -111,9 +122,16 @@ def train_class(i: int):
     process_sim(simv)
 
     # Network
-    classifier = SampleCheck(config["x_dim"], config["y_dim"], 
+    if y_mode:
+        state_sz = list(config["y_dim"])
+        state_sz[1] = 1
+        classifier = SampleCheck(state_sz, config["y_dim"], 
+                             reduce = int(np.log2(config["points"]//4)), 
+                             type = '1D').to(config['device'])
+    else:    
+        classifier = SampleCheck(config["x_dim"], config["y_dim"], 
                              reduce = int(np.log2(config["points"])) - 1, 
-                             type = '1D').cuda()
+                             type = '1D').to(config['device'])
     # So we always have 2 features at the end of convolution extraction part
     size = sum(param.numel() for param in classifier.parameters())
     run.config.num_param = size
@@ -121,7 +139,8 @@ def train_class(i: int):
     # Sampler 
     sampler = buildSampler(**config).to(config['device'])
     pts = config["points"]
-    modelfname = f"../checkpoints/LZ/CONV/{gr}/{pts}/{run_idx}.pth"
+    # modelfname = f"../checkpoints/LZ/CONV/{gr}/{pts}/{run_idx}.pth"
+    modelfname = "experiments/test/test.pth"
     state = torch.load(f"{modelfname}", map_location=torch.device(config['device']))
 
     sampler.load_state_dict(state)
@@ -169,8 +188,7 @@ def train_class(i: int):
                 size=step_per_batch,
                 replace=False,
             )
-            sd_pos = subset_data[:len(subset_data)//2]
-            sd_neg = subset_data[len(subset_data)//2:]
+            sd_pos = subset_data[:step_per_batch//2]
 
             x, y, t = (
                 xb[sd_pos],
@@ -179,10 +197,15 @@ def train_class(i: int):
             )
             # ADD HERE SAMPLES FOR NEG
             # x_fake = model.sample...
-            x_fake = xb[sd_neg]
-            x = torch.cat((x,x_fake), dim = 0)
-            x = x[:, None, ..., None]
             y = y[..., None]
+            with torch.no_grad():
+                x_fake = sampler.sample(y[step_per_batch//2:], t[step_per_batch//2:], 1).squeeze()
+    
+            x = torch.cat((x,x_fake), dim = 0)
+            if y_mode:
+                x = simt.observe(x.cpu()).to(config['device']) # create true and fake observations
+
+            x = x[:, None, ..., None]
             
             labels = torch.zeros((len(subset_data), 2)).to(x)
             labels[:len(subset_data)//2, 0] = 1.
@@ -200,7 +223,7 @@ def train_class(i: int):
         ### Valid
         k = np.random.choice(
             len(simv.data),
-            size=batch_size // 4,
+            size=batch_size // 2,
             replace=False,
         )
 
@@ -214,8 +237,7 @@ def train_class(i: int):
                     replace=False,
                 )
 
-                sd_pos = subset_data[:len(subset_data)//2]
-                sd_neg = subset_data[len(subset_data)//2:]
+                sd_pos = subset_data[:step_per_batch//2]
 
                 x, y, t = (
                     xb[sd_pos],
@@ -224,10 +246,12 @@ def train_class(i: int):
                 )
                 # ADD HERE SAMPLES FOR NEG
                 # x_fake = model.sample...
-                x_fake = xb[sd_neg]
-                x = torch.cat((x,x_fake), dim = 0)
-                x = x[:, None, ..., None]
                 y = y[..., None]
+                x_fake = sampler.sample(y[step_per_batch//2:], t[step_per_batch//2:], 1).squeeze()
+                x = torch.cat((x,x_fake), dim = 0)
+                if y_mode:
+                    x = simt.observe(x.cpu()).to(config['device'])
+                x = x[:, None, ..., None]
                 
                 labels = torch.zeros((len(subset_data), 2)).to(x)
                 labels[:len(subset_data)//2, 0] = 1.
@@ -237,13 +261,19 @@ def train_class(i: int):
                 losses_val.append(auc)
 
             if epoch%16 == 0:
-                lg = traj_len
                 yb = simv.obs[-1].cuda()
                 x,y,t = (simv.data[-1, window - 1:].cuda(), 
                          torch.cat([yb[idx - window + 1 : idx + 1].unsqueeze(0) for idx in range(window-1, lg)], dim=0), 
                          simv.time[-1, window - 1:].cuda())
-                x = x[:, None, ..., None]
+                lg = len(t)
+                
                 y = y[..., None]
+                x_fake = sampler.sample(y[lg//2:], t[lg//2:], 1).squeeze()
+                x[lg//2:] = x_fake
+                if y_mode:
+                    x = simv.observe(x.cpu()).to(config['device'])
+                x = x[:, None, ..., None]
+
                 #x_fake are same as real
                 labels = torch.zeros((lg, 2)).to(x)
                 labels[:lg//2, 0] = 1.
@@ -272,10 +302,10 @@ def train_class(i: int):
         ### Checkpoint
         if loss_val > best :
             best = loss_val
-            torch.save(
-                classifier.state_dict(),
-                runpath / f"checkpoint_{epoch:04d}.pth",
-            )
+            # torch.save(
+            #     classifier.state_dict(),
+            #     runpath / f"checkpoint_{epoch:04d}.pth",
+            # )
 
         scheduler.step()
 
@@ -283,13 +313,14 @@ def train_class(i: int):
 
 
 if __name__ == "__main__":
-    schedule(
-        train_class,
-        name="AUC BASELINE",
-        backend="slurm",
-        settings={"export": "ALL"},
-        env=[
-            "conda activate DASBI",
-            "export WANDB_SILENT=true",
-        ],
-    )
+    # schedule(
+    #     train_class,
+    #     name="AUC BASELINE",
+    #     backend="slurm",
+    #     settings={"export": "ALL"},
+    #     env=[
+    #         "conda activate DASBI",
+    #         "export WANDB_SILENT=true",
+    #     ],
+    # )
+    train_class(0)

@@ -25,9 +25,9 @@ from dasbi.networks.embedding import EmbedObs
 from dasbi.simulators.sim_lorenz96 import LZ96 as sim
 
 
-# SCRATCH = os.environ.get("SCRATCH", ".")
-# PATH = Path(SCRATCH) / "npe_conv/lz96"
-# PATH.mkdir(parents=True, exist_ok=True)
+SCRATCH = os.environ.get("SCRATCH", ".")
+PATH = Path(SCRATCH) / "npe_conv/lz96"
+PATH.mkdir(parents=True, exist_ok=True)
 
 fact = 5
 N_grid = [2**i for i in range(3,10)]
@@ -124,11 +124,11 @@ def Score_train(i: int):
 
     gr = 'step' if window == 1 else 'assim'
     run = wandb.init(project="dasbi", config=config, group=f"LZ96_scaling_{gr}")
-    # runpath = PATH / f"runs/{run.name}_{run.id}"
-    # runpath.mkdir(parents=True, exist_ok=True)
+    runpath = PATH / f"runs/{run.name}_{run.id}"
+    runpath.mkdir(parents=True, exist_ok=True)
 
-    # with open(runpath / "config.json", "w") as f:
-    #     json.dump(config, f)
+    with open(runpath / "config.json", "w") as f:
+        json.dump(config, f)
 
     # Data
     tmax = 50
@@ -268,10 +268,10 @@ def Score_train(i: int):
         ### Checkpoint
         if (prev_loss - loss_val) > 1e-3:
             prev_loss = loss_val
-            # torch.save(
-            #     conv_npe.state_dict(),
-            #     runpath / f"checkpoint.pth",
-            # )
+            torch.save(
+                conv_npe.state_dict(),
+                runpath / f"checkpoint.pth",
+            )
             count = 0
         else:
             count += 1
@@ -287,14 +287,13 @@ def Score_train(i: int):
 
 
 if __name__ == "__main__":
-    # schedule(
-    #     Score_train,
-    #     name="Scaling LZ",
-    #     backend="slurm",
-    #     settings={"export": "ALL"},
-    #     env=[
-    #         "conda activate DASBI",
-    #         "export WANDB_SILENT=true",
-    #     ],
-    # )
-    Score_train(0)
+    schedule(
+        Score_train,
+        name="Scaling LZ",
+        backend="slurm",
+        settings={"export": "ALL"},
+        env=[
+            "conda activate DASBI",
+            "export WANDB_SILENT=true",
+        ],
+    )
