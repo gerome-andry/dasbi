@@ -60,7 +60,7 @@ class downUpLayer(nn.Module):
 
 class ScoreAttUNet(nn.Module):
     def __init__(self, input_c = 1, output_c = 1, depth = 3, 
-                input_hidden = 64, spatial_scale = 2, n_c = 2, 
+                input_hidden = 64, spatial_scale = 2, n_c = 3, 
                 ks = 3, type = '2D', temporal = 5):
         super().__init__()
 
