@@ -109,7 +109,7 @@ class ConvNPE(nn.Module):
         t_dim = t.shape
         x_s = []
         n_iter = 1 if max_samp is None else int(np.ceil(n/max_samp))
-        for _ in trange(n_iter):
+        for _ in range(n_iter):
             ns = int(np.minimum(n, (max_samp if max_samp is not None else np.inf)))
             y_t = y.unsqueeze(0).expand(ns, -1, -1, -1, -1).reshape((-1,) + y_dim[1:])
             t_t = t.unsqueeze(0).expand(ns, -1, -1).reshape((-1,) + t_dim[1:])

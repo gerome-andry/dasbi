@@ -143,6 +143,11 @@ def train_class(i: int):
     modelfname = "experiments/test/test.pth"
     state = torch.load(f"{modelfname}", map_location=torch.device(config['device']))
 
+    with torch.no_grad():
+        sampler(torch.zeros(config["x_dim"]).to(config['device']), 
+                torch.zeros(config["y_dim"]).to(config['device']), 
+                torch.zeros(1).to(config['device']))
+        # forward pass to init parameters
     sampler.load_state_dict(state)
     sampler.eval()
 
@@ -263,7 +268,7 @@ def train_class(i: int):
             if epoch%16 == 0:
                 yb = simv.obs[-1].cuda()
                 x,y,t = (simv.data[-1, window - 1:].cuda(), 
-                         torch.cat([yb[idx - window + 1 : idx + 1].unsqueeze(0) for idx in range(window-1, lg)], dim=0), 
+                         torch.cat([yb[idx - window + 1 : idx + 1].unsqueeze(0) for idx in range(window-1, traj_len)], dim=0), 
                          simv.time[-1, window - 1:].cuda())
                 lg = len(t)
                 
