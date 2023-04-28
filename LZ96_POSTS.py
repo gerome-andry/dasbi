@@ -26,7 +26,7 @@ from dasbi.simulators.sim_lorenz96 import LZ96 as sim
 
 
 SCRATCH = os.environ.get("SCRATCH", ".")
-PATH = Path(SCRATCH) / "npe_conv/lz96"
+PATH = Path(SCRATCH) / "nse_post/lz96"
 PATH.mkdir(parents=True, exist_ok=True)
 
 fact = 5
@@ -51,6 +51,7 @@ CONFIG = {
     "embedding": [3]*lN,
     "depth": [dp[k] for k in N_grid],
     "input_h": [45 + int(np.log2(k)) for k in N_grid],
+    "N_ms": ["score"]*lN,
     # Training
     # "epochs": [512]*lN,
     "batch_size": [128]*lN,
