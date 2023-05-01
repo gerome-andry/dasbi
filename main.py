@@ -8,7 +8,7 @@ import torch
 
 from tqdm import tqdm
 
-from LZ96_CONV import build
+from LZ96_POSTS import build
 
 # GENERATE DATA AND OBSERVATIONS
 torch.manual_seed(42)
@@ -19,6 +19,9 @@ from lampe.inference import NPE
 from zuko.flows import NSF 
 from dasbi.networks.embedding import EmbedObs
 import numpy as np 
+import matplotlib.pyplot as plt   
+import os          
+os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 
 class myMOD(torch.nn.Module):
     def __init__(self, emb, NSF):
@@ -120,6 +123,15 @@ nms_dict = {
     256: 4,
     512: 4,
 }
+dp = {
+    8 : 2,
+    16 : 2,
+    32 : 2,
+    64 : 3,
+    128 : 3,
+    256 : 3
+}
+
 config = {
     "embedding": 3,
     "kernel_size": 2,
@@ -130,6 +142,8 @@ config = {
     "N_ms": 2 + N//128,
     "hf": [32*int(N**0.5), ]*4,
     "tf": 3 + N//256,
+    "depth": dp[N],
+    "input_h": 45 + int(np.log2(N)),
     # Training
     "epochs": 256,
     "batch_size": 64,
@@ -171,12 +185,12 @@ device = "cpu"
 model = build(**config).to(device)
 print('NPE:',sum(param.numel() for param in model.parameters()))
 
-with torch.no_grad():
-    model(
-        simulator.data[None, None, 0, 0, :, None].to(device),
-        simulator.obs[None, :window, 0, :, None].to(device),
-        simulator.time[0, 0, None].to(device),
-    )
+# with torch.no_grad():
+#     model(
+#         simulator.data[None, None, 0, 0, :, None].to(device),
+#         simulator.obs[None, :window, 0, :, None].to(device),
+#         simulator.time[0, 0, None].to(device),
+#     )
 
 # print(model)
 state = torch.load(f"{modelfname}", map_location=torch.device(device))
@@ -202,12 +216,16 @@ t = t.unsqueeze(-1)
 #     x_ar = simulator.data[0, window - 2]
 #     x_ar = x_ar[None, None, :, None].to(device)
 
-x_s = (
-    model.sample(y.to(device), t.to(device), 2**15, max_samp=2**10)
-    .squeeze()
-    .detach()
-    .cpu()
-)
+plt.plot(x.squeeze())
+plt.show()
+
+with torch.no_grad():
+    x_s = (
+        model.sample(y.to(device), t.to(device), 2**10)
+        .squeeze()
+        .detach()
+        .cpu()
+    )
 
 from lampe.plots import corner, mark_point
 points = [0,1,2,3,4,5,6,7]
@@ -255,10 +273,10 @@ y = torch.cat(
 )
 # 1 STEP :
 # y = y.unsqueeze(1)
-samp = model.sample(y.to(device), t.to(device), 2**10).squeeze().detach().cpu()
+samp = model.sample(y.to(device), t.to(device), 16).squeeze().detach().cpu()
 # print(samp.shape)
 y_samp = simulator.observe(postprocess_x(samp)).mean((0))
-samp = samp.mean(0)
+samp = samp[0] #.mean(0)
 
 simulator.data = postprocess_x(samp[None, ...])
 simulator.obs = y_samp[None, ...]

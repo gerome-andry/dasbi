@@ -96,7 +96,7 @@ class ScoreAttUNet(nn.Module):
         outC = nextLayC//(spatial_scale**depth)
         self.tail = nn.Conv2d(outC, output_c, 1)
 
-        self.upSample = nn.Upsample(scale_factor = ((2) if type == '2D' else (2,1)))
+        self.upSample = nn.Upsample(scale_factor = ((spatial_scale) if type == '2D' else (spatial_scale,1)))
 
 
     def fullScaleUp(self, x, idx):

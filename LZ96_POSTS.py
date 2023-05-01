@@ -29,8 +29,8 @@ SCRATCH = os.environ.get("SCRATCH", ".")
 PATH = Path(SCRATCH) / "nse_post/lz96"
 PATH.mkdir(parents=True, exist_ok=True)
 
-fact = 5
-N_grid = [2**i for i in range(3,9)]
+fact = 1
+N_grid = [2**i for i in range(3,4)]
 Y_grid = [int(np.ceil(x/4)) for x in N_grid]
 lN = len(N_grid)
 window = 10
@@ -97,7 +97,7 @@ def build(**config):
         conv_lay=config["embedding"],
         observer_mask=mask
     )
-    return NSE(emb_net, **mod_args)
+    return NSE(emb_net, state_dim=config["x_dim"], **mod_args)
 
 
 def process_sim(simulator):
@@ -113,6 +113,7 @@ def process_sim(simulator):
     simulator.data = (simulator.data - MUX) / SIGMAX
     simulator.obs = (simulator.obs - MUY) / SIGMAY
     simulator.time = (simulator.time - MUT) / SIGMAT
+
 
 @job(array=fact*lN, cpus=2, gpus=1, ram="32GB", time="3-12:00:00")
 def Score_train(i: int):

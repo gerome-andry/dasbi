@@ -5,14 +5,19 @@ import torch.nn as nn
 import numpy as np
 from tqdm import trange
 import math
+import matplotlib.pyplot as plt
+import os               
+
+os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 
 class VPScorePosterior(nn.Module):
-    def __init__(self, emb_net, eps = 1e-3, **score_args):
+    def __init__(self, emb_net, state_dim, eps = 1e-3, **score_args):
         super().__init__()
         self.score = ScoreAttUNet(**score_args) # condition in the score input
         self.alpha = lambda t : torch.cos(math.acos(math.sqrt(eps))*t)**2
         self.embed = emb_net
         self.epsilon = eps 
+        self.x_dim = state_dim
 
     def mu(self, t):
         return self.alpha(t)
@@ -21,10 +26,10 @@ class VPScorePosterior(nn.Module):
         return (1 - self.alpha(t) ** 2 + self.epsilon**2).sqrt()
     
     def forward(self, x, t):# x -> shape of x
-        z = torch.randn_like(x)
-        x = self.mu(t[...,None,None,None])*x + self.sigma(t[...,None,None,None])*z
+        e = torch.randn_like(x)
+        x = self.mu(t[...,None,None,None])*x + self.sigma(t[...,None,None,None])*e
 
-        return x, -z #sample x_t from p(x_t|x), rescaled target N(0,I)
+        return x, e #sample x_t from p(x_t|x), rescaled target N(0,I)
     
     def loss(self, x, y, t):
         noise_t = torch.rand((x.shape[0])).to(x)
@@ -32,8 +37,36 @@ class VPScorePosterior(nn.Module):
         x, scaled_target = self(x, noise_t)
         # print(x.shape, y_emb.shape)
 
-        return (self.score(torch.cat((y_emb, x), dim = 1), noise_t) - scaled_target).square().mean()
+        return (scaled_target - self.score(torch.cat((y_emb, x), dim = 1), noise_t)).square().mean()
 
+    def sample(self, y, t, n, steps = 64):
+        denoise_time = torch.linspace(1,0,steps + 1).to(y)
+        y_emb = self.embed(y, t)
+        y_shapes = y_emb.shape
+        y_emb = y_emb[None,...].expand(n,-1,-1,-1,-1).reshape((-1,) + y_shapes[-3:])
+        dt = 1/steps 
+
+        sample_sz = list(self.x_dim)
+        sample_sz[0] = n*y_shapes[0]
+        x = torch.randn(sample_sz).to(y)
+
+        for t_n in denoise_time[:-1]:
+            score_tn = t_n.unsqueeze(0).repeat(n*y_shapes[0])
+            ratio = self.mu(t_n-dt)/self.mu(t_n)
+            x = ratio*x + (self.sigma(t_n - dt) - 
+                           ratio*self.sigma(t_n))*(self.score(torch.cat((y_emb, x), 
+                                                                        dim = 1), 
+                                                                        score_tn))
+            # z = torch.randn_like(x)
+            # x = x + (dt/(2*self.sigma(t_n)))*self.score(torch.cat((y_emb, x), dim = 1), score_tn) + math.sqrt(dt)*z
+            
+            plt.clf()
+            plt.plot(x.mean(dim= (0,1,3)).detach())
+            plt.show(block = False)
+            plt.pause(.1)
+
+        # exit()
+        return x.reshape((n,-1,) + self.x_dim[1:]) #(x - x.mean())/x.std()
 
 
 class MafNPE(nn.Module):
