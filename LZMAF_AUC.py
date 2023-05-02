@@ -60,7 +60,7 @@ CONFIG = {
     'obs_mask': [True],
     # Data
     "device": ['cuda'],
-    "y_dim_emb": [(1, 5, N, 1)],
+    "y_dim_emb": [(1, 11, N, 1)],
 }
 
 def process_sim(simulator):
