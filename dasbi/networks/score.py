@@ -92,8 +92,8 @@ class ScoreAttUNet(nn.Module):
         # input_scale = input_hidden/input_c
         self.down.append(downUpLayer(input_c, input_hidden, n_c = n_c, kernel_sz = ks))
         nextLayC = input_hidden
-        # self.att_skip.extend([AttentionSkip(chan = nextLayC * spatial_scale ** i, type = type, factor = spatial_scale)
-                            # for i in range(depth - 1)])
+        self.att_skip.extend([AttentionSkip(chan = nextLayC * spatial_scale ** i, type = type, factor = spatial_scale)
+                            for i in range(depth - 1)])
         # + 1 in dow path for time embedding
         self.down.extend([downUpLayer(nextLayC * spatial_scale ** i + temporal, nextLayC * spatial_scale ** (i+1), n_c = n_c, kernel_sz = ks)
                             for i in range(depth - 1)])
@@ -131,7 +131,7 @@ class ScoreAttUNet(nn.Module):
         x = self.down[-1](x)
         for i,u in enumerate(self.up):
             x = self.reduceChannel[i](x)
-            x = torch.cat((x_skip[-(i+1)], self.upSample(x)), 1)#torch.cat((self.att_skip[-(i+1)](x_skip[-(i+1)], x), self.upSample(x)), 1)
+            x = torch.cat((self.att_skip[-(i+1)](x_skip[-(i+1)], x), self.upSample(x)), 1)
             x = u(x)
 
         x = self.reduceChannel[-1](x)
