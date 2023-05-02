@@ -76,13 +76,13 @@ CONFIG = {
 
 def build(**config):
     mod_args = {
-        # "input_c": config["x_dim"][1] + config["y_dim_emb"][1],
-        # "output_c": config["x_dim"][1],
-        # "depth": config["depth"],
-        # "input_hidden": config["input_h"],
-        # "type": "1D",
-        "in_d":torch.tensor(config["x_dim"]).prod() + torch.tensor(config["y_dim_emb"]).prod(),
-        'out_d': torch.tensor(config["x_dim"]).prod()
+        "input_c": 2*config["y_dim_emb"][1],
+        "output_c": config["x_dim"][1],
+        "depth": config["depth"],
+        "input_hidden": config["input_h"],
+        "type": "1D",
+        # "in_d":torch.tensor(config["x_dim"]).prod() + torch.tensor(config["y_dim_emb"]).prod(),
+        # 'out_d': torch.tensor(config["x_dim"]).prod()
     }
 
     mask = None
@@ -99,7 +99,7 @@ def build(**config):
         conv_lay=config["embedding"],
         observer_mask=mask
     )
-    return NSE(emb_net, state_dim=config["x_dim"], **mod_args)
+    return NSE(emb_net, state_dim=config["x_dim"], targ_c = config["y_dim_emb"][1], **mod_args)
 
 
 def process_sim(simulator):
