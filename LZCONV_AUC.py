@@ -220,7 +220,9 @@ def train_class(i: int):
             optimizer.zero_grad()
             l = classifier.loss(x, y, t, labels)
             l.backward()
-            optimizer.step()
+            norm = torch.nn.utils.clip_grad_norm_(classifier.parameters(), 1)
+            if torch.isfinite(norm):
+                optimizer.step()
 
             losses_train.append(l.detach())
 
@@ -284,7 +286,7 @@ def train_class(i: int):
                 labels = torch.zeros((lg, 2)).to(x)
                 labels[:lg//2, 0] = 1.
                 labels[lg//2:, 1] = 1.
-                fpr, tpr, _ = classifier.AUC(x,y,t, labels)
+                fpr, tpr, _ = classifier.AUC(x,y,t, labels, levels = 1000)
                 plt.plot(fpr, tpr)
                 plt.title('ROC curve')
                 plt.xlabel('FPR')

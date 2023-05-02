@@ -81,6 +81,8 @@ def build(**config):
         "depth": config["depth"],
         "input_hidden": config["input_h"],
         "type": "1D",
+        "in_d":torch.tensor(config["x_dim"]).prod() + torch.tensor(config["y_dim_emb"]).prod(),
+        'out_d': torch.tensor(config["x_dim"]).prod()
     }
 
     mask = None

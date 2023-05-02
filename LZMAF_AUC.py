@@ -122,7 +122,7 @@ def train_class(i: int):
                              type = '1D').to(config['device'])
     else:    
         classifier = SampleCheck(config["x_dim"], config["y_dim"], 
-                             reduce = int(np.log2(config["points"])) - 1, 
+                             reduce = int(np.log2(config["points"])) - 2, 
                              type = '1D').to(config['device'])
     # So we always have 2 features at the end of convolution extraction part
     size = sum(param.numel() for param in classifier.parameters())
@@ -205,7 +205,10 @@ def train_class(i: int):
             optimizer.zero_grad()
             l = classifier.loss(x, y, t, labels)
             l.backward()
-            optimizer.step()
+            norm = torch.nn.utils.clip_grad_norm_(classifier.parameters(), 1)
+            if torch.isfinite(norm):
+                optimizer.step()
+            # optimizer.step()
 
             losses_train.append(l.detach())
 
@@ -270,7 +273,7 @@ def train_class(i: int):
                 labels = torch.zeros((lg, 2)).to(x)
                 labels[:lg//2, 0] = 1.
                 labels[lg//2:, 1] = 1.
-                fpr, tpr, _ = classifier.AUC(x,y,t, labels)
+                fpr, tpr, _ = classifier.AUC(x,y,t, labels, levels = 1000)
                 plt.plot(fpr, tpr)
                 plt.title('ROC curve')
                 plt.xlabel('FPR')

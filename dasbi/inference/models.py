@@ -1,5 +1,5 @@
 from ..networks.nfmodules import MSConv
-from ..networks.score import ScoreAttUNet
+from ..networks.score import ScoreAttUNet, MLP
 import torch
 import torch.nn as nn
 import numpy as np
@@ -13,7 +13,8 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 class VPScorePosterior(nn.Module):
     def __init__(self, emb_net, state_dim, eps = 1e-3, **score_args):
         super().__init__()
-        self.score = ScoreAttUNet(**score_args) # condition in the score input
+        # self.score = ScoreAttUNet(**score_args) # condition in the score input
+        self.score = MLP(**score_args)
         self.alpha = lambda t : torch.cos(math.acos(math.sqrt(eps))*t)**2
         self.embed = emb_net
         self.epsilon = eps 
@@ -43,7 +44,9 @@ class VPScorePosterior(nn.Module):
         x, scaled_target = self(x, noise_t)
         # print(x.shape, y_emb.shape)
 
-        return (scaled_target - self.score(torch.cat((y_emb, x), dim = 1), noise_t)).square().mean()
+        return (scaled_target - self.score(torch.cat((y_emb, x), 
+                                                     dim = 1).flatten(start_dim = 1), 
+                                                     noise_t).reshape(scaled_target.shape)).square().mean()
 
     def sample(self, y, t, n, steps = 64):
         denoise_time = torch.linspace(1,0,steps + 1).to(y)
@@ -59,18 +62,18 @@ class VPScorePosterior(nn.Module):
         for t_n in denoise_time[:-1]:
             score_tn = t_n.unsqueeze(0).repeat(n*y_shapes[0])
             ratio = self.mu(t_n-dt)/self.mu(t_n)
-            s = self.score(torch.cat((y_emb, x), dim = 1), score_tn)
-            # x = ratio*x + (self.sigma(t_n - dt) - 
-            #                ratio*self.sigma(t_n))*s
-            print(t_n, ratio)
-            print(self.sigma(t_n), self.sigma(t_n - dt))
-            z = torch.randn_like(x)
-            x = x - (dt/self.sigma(t_n))*s + math.sqrt(2*dt)*z
+            s = self.score(torch.cat((y_emb, x), dim = 1).flatten(start_dim = 1), score_tn).reshape(x.shape)
+            x = ratio*x + (self.sigma(t_n - dt) - 
+                           ratio*self.sigma(t_n))*s
+            # print(t_n, ratio)
+            # print(self.sigma(t_n), self.sigma(t_n - dt))
+            # z = torch.randn_like(x)
+            # x = x - (dt/self.sigma(t_n))*s + math.sqrt(2*dt)*z
             
-            # plt.clf()
-            # plt.plot(x.mean(dim= (0,1,3)).detach())
-            # plt.show(block = False)
-            # plt.pause(.1)
+            plt.clf()
+            plt.plot(x.mean(dim= (0,1,3)).detach())
+            plt.show(block = False)
+            plt.pause(.1)
 
         # exit()
         return x.reshape((n,-1,) + self.x_dim[1:]) #(x - x.mean())/x.std()
