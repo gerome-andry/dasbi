@@ -22,9 +22,9 @@ from dasbi.simulators.sim_lorenz96 import LZ96 as sim
 from dasbi.diagnostic.classifier import SampleCheck
 from LZ96_CONV import build as buildSampler
 
-# SCRATCH = os.environ.get("SCRATCH", ".")
-# PATH = Path(SCRATCH) / "auc/lz96/conv_npe"
-# PATH.mkdir(parents=True, exist_ok=True)
+SCRATCH = os.environ.get("SCRATCH", ".")
+PATH = Path(SCRATCH) / "auc/lz96/conv_npe"
+PATH.mkdir(parents=True, exist_ok=True)
 
 window = 10
 N = 8
@@ -103,8 +103,8 @@ def train_class(i: int):
 
     gr = 'step' if window == 1 else 'assim'
     run = wandb.init(project="dasbi", config=config, group=f"LZ96_diag_{gr}")
-    # runpath = PATH / f"runs/{run.name}_{run.id}"
-    # runpath.mkdir(parents=True, exist_ok=True)
+    runpath = PATH / f"runs/{run.name}_{run.id}"
+    runpath.mkdir(parents=True, exist_ok=True)
 
     # Data
     tmax = 50
@@ -139,8 +139,8 @@ def train_class(i: int):
     # Sampler 
     sampler = buildSampler(**config).to(config['device'])
     pts = config["points"]
-    # modelfname = f"../checkpoints/LZ/CONV/{gr}/{pts}/{run_idx}.pth"
-    modelfname = "experiments/test/test.pth"
+    modelfname = f"../checkpoints/LZ/CONV/{gr}/{pts}/{run_idx}.pth"
+    # modelfname = "experiments/test/test.pth"
     state = torch.load(f"{modelfname}", map_location=torch.device(config['device']))
 
     with torch.no_grad():
@@ -307,10 +307,10 @@ def train_class(i: int):
         ### Checkpoint
         if loss_val > best :
             best = loss_val
-            # torch.save(
-            #     classifier.state_dict(),
-            #     runpath / f"checkpoint_{epoch:04d}.pth",
-            # )
+            torch.save(
+                classifier.state_dict(),
+                runpath / f"checkpoint_{epoch:04d}.pth",
+            )
 
         scheduler.step()
 
@@ -318,14 +318,14 @@ def train_class(i: int):
 
 
 if __name__ == "__main__":
-    # schedule(
-    #     train_class,
-    #     name="AUC BASELINE",
-    #     backend="slurm",
-    #     settings={"export": "ALL"},
-    #     env=[
-    #         "conda activate DASBI",
-    #         "export WANDB_SILENT=true",
-    #     ],
-    # )
-    train_class(0)
+    schedule(
+        train_class,
+        name="AUC BASELINE",
+        backend="slurm",
+        settings={"export": "ALL"},
+        env=[
+            "conda activate DASBI",
+            "export WANDB_SILENT=true",
+        ],
+    )
+    # train_class(0)

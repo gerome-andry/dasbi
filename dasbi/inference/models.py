@@ -18,6 +18,12 @@ class VPScorePosterior(nn.Module):
         self.embed = emb_net
         self.epsilon = eps 
         self.x_dim = state_dim
+        t = torch.linspace(1,0,65)
+        # plt.plot(t[:-1], self.mu(t[:-1]))
+        plt.plot(t[:-1], self.sigma(t[:-1]))
+        plt.plot(t[:-1], self.mu(t[:-1]))
+        plt.plot(t[:-1], self.mu(t[:-1] - 1/64)/self.mu(t[:-1]))
+        plt.show()
 
     def mu(self, t):
         return self.alpha(t)
@@ -53,22 +59,43 @@ class VPScorePosterior(nn.Module):
         for t_n in denoise_time[:-1]:
             score_tn = t_n.unsqueeze(0).repeat(n*y_shapes[0])
             ratio = self.mu(t_n-dt)/self.mu(t_n)
-            x = ratio*x + (self.sigma(t_n - dt) - 
-                           ratio*self.sigma(t_n))*(self.score(torch.cat((y_emb, x), 
-                                                                        dim = 1), 
-                                                                        score_tn))
-            # z = torch.randn_like(x)
-            # x = x + (dt/(2*self.sigma(t_n)))*self.score(torch.cat((y_emb, x), dim = 1), score_tn) + math.sqrt(dt)*z
+            s = self.score(torch.cat((y_emb, x), dim = 1), score_tn)
+            # x = ratio*x + (self.sigma(t_n - dt) - 
+            #                ratio*self.sigma(t_n))*s
+            print(t_n, ratio)
+            print(self.sigma(t_n), self.sigma(t_n - dt))
+            z = torch.randn_like(x)
+            x = x - (dt/self.sigma(t_n))*s + math.sqrt(2*dt)*z
             
-            plt.clf()
-            plt.plot(x.mean(dim= (0,1,3)).detach())
-            plt.show(block = False)
-            plt.pause(.1)
+            # plt.clf()
+            # plt.plot(x.mean(dim= (0,1,3)).detach())
+            # plt.show(block = False)
+            # plt.pause(.1)
 
         # exit()
         return x.reshape((n,-1,) + self.x_dim[1:]) #(x - x.mean())/x.std()
 
+class lampeNSE(nn.Module):
+    def __init__(self, emb, NSE):
+        super().__init__()
+        self.flow = NSE
+        self.embed = emb
+    
+    def forward(self, x, y, t):
+        y_t = self.embed(y,t)
+        batch = x.shape[0]
+        return self.flow(x.reshape((batch, -1)), y_t.reshape(batch, -1))
 
+    def sample(self, y, t, n):
+        y_t = self.embed(y,t)
+        batch = y_t.shape[0]
+        return self.flow.flow(y_t.reshape((batch, -1))).sample((n,))
+    
+    def loss(self, x, y, t):
+        log_p = self(x,y,t)
+        return -log_p.mean()
+    
+    
 class MafNPE(nn.Module):
     def __init__(self, emb, NSF):
         super().__init__()
