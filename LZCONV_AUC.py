@@ -94,6 +94,7 @@ def process_sim(simulator):
 @job(array=5, cpus=2, gpus=1, ram="32GB", time="2-10:00:00")
 def train_class(i: int):
     # config = {key: random.choice(values) for key, values in CONFIG.items()}
+    y_mode = i >= 5
     run_idx = i%5
     # recover the good model ... 
     config = {key : values[0] for key,values in CONFIG.items()}

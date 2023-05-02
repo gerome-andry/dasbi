@@ -39,7 +39,7 @@ nms_dict = {
     256: 4,
     512: 4,
 }
-y_mode = False 
+# y_mode = False 
 
 CONFIG = {
     "observer_fp" : [f"experiments/observer{N}LZ.pickle"],
@@ -78,9 +78,10 @@ def process_sim(simulator):
     simulator.time = (simulator.time - MUT) / SIGMAT
 
 
-@job(array=5, cpus=2, gpus=1, ram="32GB", time="10:00:00")
+@job(array=10, cpus=2, gpus=1, ram="32GB", time="10:00:00")
 def train_class(i: int):
     # config = {key: random.choice(values) for key, values in CONFIG.items()}
+    y_mode = i >= 5
     run_idx = i%5
     # recover the good model ... 
     config = {key : values[0] for key,values in CONFIG.items()}
