@@ -54,9 +54,10 @@ CONFIG = {
     "step_per_batch": [512],
     "optimizer": ["AdamW"],
 
-    "embedding": [4],
+    "embedding": [3],
     "hf": [[32*int(N**0.5), ]*4],
     "tf": [3 + N//256],
+    'obs_mask': [True],
     # Data
     "device": ['cuda'],
     "y_dim_emb": [(1, 5, N, 1)],
