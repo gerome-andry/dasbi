@@ -76,11 +76,11 @@ CONFIG = {
 
 def build(**config):
     mod_args = {
-        "input_c": config["x_dim"][1] + config["y_dim_emb"][1],
-        "output_c": config["x_dim"][1],
-        "depth": config["depth"],
-        "input_hidden": config["input_h"],
-        "type": "1D",
+        # "input_c": config["x_dim"][1] + config["y_dim_emb"][1],
+        # "output_c": config["x_dim"][1],
+        # "depth": config["depth"],
+        # "input_hidden": config["input_h"],
+        # "type": "1D",
         "in_d":torch.tensor(config["x_dim"]).prod() + torch.tensor(config["y_dim_emb"]).prod(),
         'out_d': torch.tensor(config["x_dim"]).prod()
     }
