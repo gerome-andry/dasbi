@@ -207,7 +207,7 @@ def Score_train(i: int):
                 replace=False,
             )
 
-            print(y.shape)
+            print(yb.shape)
             print(subset_data.shape)
             x, y, t = (
                 xb[subset_data],
