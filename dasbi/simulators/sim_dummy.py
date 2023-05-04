@@ -18,7 +18,7 @@ class Dummy(Simulator):
         self.data += t_vect[None, ..., None]
         self.time = t_vect[None, ...].repeat(b, 1)
         if observe:
-            self.obs = torch.zeros((b,self.N//4, lg))
+            self.obs = torch.zeros((b, lg, self.N//4))
             for i in range(self.N//4):
                 self.obs[..., i] = self.data[...,4*i:4*(i+1)].sum(-1)
 
