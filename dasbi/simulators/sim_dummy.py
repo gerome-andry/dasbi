@@ -14,13 +14,13 @@ class Dummy(Simulator):
 
         b = x0.shape[0]
         lg = len(t_vect)
-        self.data = x0[..., None].repeat(1,1,lg)
-        self.data += t_vect[None, None, ...]
+        self.data = x0[..., None,:].repeat(1,lg,1)
+        self.data += t_vect[None, ..., None]
         self.time = t_vect[None, ...].repeat(b, 1)
         if observe:
             self.obs = torch.zeros((b,self.N//4, lg))
             for i in range(self.N//4):
-                self.obs[:, i, ...] = self.data[:,4*i:4*(i+1),...].sum(1)
+                self.obs[..., i] = self.data[...,4*i:4*(i+1)].sum(-1)
 
             self.obs += self.noise_amp*torch.randn_like(self.obs)
 
