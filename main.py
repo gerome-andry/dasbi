@@ -143,7 +143,7 @@ config = {
     "hf": [32*int(N**0.5), ]*4,
     "tf": 3 + N//256,
     "depth": dp[N],
-    "input_h": 45 + int(np.log2(N)),
+    "input_h": 64 + int(np.log2(N)),
     # Training
     "epochs": 256,
     "batch_size": 64,
@@ -221,7 +221,7 @@ plt.show()
 
 with torch.no_grad():
     x_s = (
-        model.sample(y.to(device), t.to(device), 2**10)
+        model.sample(y.to(device), t.to(device), 2**10, x_ref = x)
         .squeeze()
         .detach()
         .cpu()

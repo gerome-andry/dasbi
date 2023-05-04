@@ -22,8 +22,8 @@ from zuko.distributions import DiagNormal
 from zuko.flows import Unconditional
 from dasbi.inference.models import VPScorePosterior as NSE
 from dasbi.networks.embedding import EmbedObs
-from dasbi.simulators.sim_lorenz96 import LZ96 as sim
-
+# from dasbi.simulators.sim_lorenz96 import LZ96 as sim
+from dasbi.simulators.sim_dummy import Dummy as sim
 
 SCRATCH = os.environ.get("SCRATCH", ".")
 PATH = Path(SCRATCH) / "nse_post/lz96"

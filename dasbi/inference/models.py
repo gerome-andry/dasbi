@@ -48,7 +48,7 @@ class VPScorePosterior(nn.Module):
         return (scaled_target - 
                 self.score(torch.cat((y_emb, self.x_imp(x)), dim = 1), noise_t)).square().mean()
 
-    def sample(self, y, t, n, steps = 64):
+    def sample(self, y, t, n, steps = 64, x_ref = None):
         denoise_time = torch.linspace(1,0,steps + 1).to(y)
         y_emb = self.embed(y, t)
         y_shapes = y_emb.shape
@@ -63,12 +63,20 @@ class VPScorePosterior(nn.Module):
             score_tn = t_n.unsqueeze(0).repeat(n*y_shapes[0])
             ratio = self.mu(t_n-dt)/self.mu(t_n)
             s = self.score(torch.cat((y_emb, self.x_imp(x)), dim = 1), score_tn)
-            x = ratio*x + (self.sigma(t_n - dt) - 
-                           ratio*self.sigma(t_n))*s
+            if x_ref is not None:
+                print("Expected µ:", self.mu(t_n)*x_ref.squeeze(), "sigm", self.sigma(t_n))
+
+            # x = ratio*x + (self.sigma(t_n - dt) - 
+            #                ratio*self.sigma(t_n))*s
+            
+            z = torch.randn_like(x)
+            x = x - (dt/self.sigma(t_n))*s + math.sqrt(2*dt)*z
+
+            if x_ref is not None:
+                print("Sampled µ:", x.mean(dim = (0,1,3)), "sigm", x.std(dim = (0,1,3)))
+
             # print(t_n, ratio)
             # print(self.sigma(t_n), self.sigma(t_n - dt))
-            # z = torch.randn_like(x)
-            # x = x - (dt/self.sigma(t_n))*s + math.sqrt(2*dt)*z
             
             plt.clf()
             plt.plot(x.mean(dim= (0,1,3)).detach())

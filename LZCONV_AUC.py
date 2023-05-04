@@ -76,7 +76,7 @@ CONFIG = {
     'roll':[True],
 }
 
-def process_sim(simulator):
+def process_sim(simulator, x = True, y = True, t = True):
     MUX = simulator.data.mean(dim=(0, 1))
     SIGMAX = simulator.data.std(dim=(0, 1))
 
@@ -86,10 +86,14 @@ def process_sim(simulator):
     MUT = simulator.time.mean(dim=(0, 1))
     SIGMAT = simulator.time.std(dim=(0, 1))
 
-    simulator.data = (simulator.data - MUX) / SIGMAX
-    simulator.obs = (simulator.obs - MUY) / SIGMAY
-    simulator.time = (simulator.time - MUT) / SIGMAT
+    if x:
+        simulator.data = (simulator.data - MUX) / SIGMAX
+    if y:
+        simulator.obs = (simulator.obs - MUY) / SIGMAY
+    if t:
+        simulator.time = (simulator.time - MUT) / SIGMAT
 
+    return MUX, SIGMAX, MUY, SIGMAY, MUT, SIGMAT
 
 @job(array=5, cpus=2, gpus=1, ram="32GB", time="2-10:00:00")
 def train_class(i: int):
@@ -115,12 +119,12 @@ def train_class(i: int):
     simt = sim(N=config["points"], noise=config["noise"])
     simt.init_observer(observer)
     simt.generate_steps(torch.randn((config["train_sim"], config["points"])), times)
-    process_sim(simt)
+    mx, sx, my, sy, _, _ = process_sim(simt)
 
     simv = sim(N=config["points"], noise=config["noise"])
     simv.init_observer(observer)
     simv.generate_steps(torch.randn((config["val_sim"], config["points"])), times)
-    process_sim(simv)
+    mvx, svx, mvy, svy, _, _ = process_sim(simv)
 
     # Network
     if y_mode:
@@ -209,7 +213,7 @@ def train_class(i: int):
     
             x = torch.cat((x,x_fake), dim = 0)
             if y_mode:
-                x = simt.observe(x.cpu()).to(config['device']) # create true and fake observations
+                x = (simt.observe((x*sx + mx).cpu()).to(config['device'])-my)/sy # create true and fake observations
 
             x = x[:, None, ..., None]
             
@@ -258,7 +262,7 @@ def train_class(i: int):
                 x_fake = sampler.sample(y[step_per_batch//2:], t[step_per_batch//2:], 1).squeeze()
                 x = torch.cat((x,x_fake), dim = 0)
                 if y_mode:
-                    x = simt.observe(x.cpu()).to(config['device'])
+                    x = (simv.observe((x*svx + mvx).cpu()).to(config['device'])-mvy)/svy
                 x = x[:, None, ..., None]
                 
                 labels = torch.zeros((len(subset_data), 2)).to(x)
@@ -279,7 +283,7 @@ def train_class(i: int):
                 x_fake = sampler.sample(y[lg//2:], t[lg//2:], 1).squeeze()
                 x[lg//2:] = x_fake
                 if y_mode:
-                    x = simv.observe(x.cpu()).to(config['device'])
+                    x = (simv.observe((x*svx + mvx).cpu()).to(config['device'])-mvy)/svy
                 x = x[:, None, ..., None]
 
                 #x_fake are same as real
