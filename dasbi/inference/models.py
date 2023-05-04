@@ -13,8 +13,8 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 class VPScorePosterior(nn.Module):
     def __init__(self, emb_net, state_dim, eps = 1e-3, **score_args):
         super().__init__()
-        # self.score = ScoreAttUNet(**score_args) # condition in the score input
-        self.score = MLP(**score_args)
+        self.score = ScoreAttUNet(**score_args) # condition in the score input
+        # self.score = MLP(**score_args)
         self.alpha = lambda t : torch.cos(math.acos(math.sqrt(eps))*t)**2
         self.embed = emb_net
         self.epsilon = eps 
@@ -47,7 +47,9 @@ class VPScorePosterior(nn.Module):
         # print(x.shape, y_emb.shape)
 
         return (scaled_target - 
-                self.score(torch.cat((y_emb, x), dim = 1).flatten(start_dim = 1), noise_t).reshape(dims)).square().mean()
+                self.score(torch.cat((y_emb, x), dim = 1), noise_t)).square().mean()
+        # return (scaled_target - 
+        #         self.score(torch.cat((y_emb, x), dim = 1).flatten(start_dim = 1), noise_t).reshape(dims)).square().mean()
 
     def sample(self, y, t, n, steps = 64, x_ref = None):
         denoise_time = torch.linspace(1,0,steps + 1).to(y)

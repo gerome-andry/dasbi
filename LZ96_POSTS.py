@@ -76,13 +76,13 @@ CONFIG = {
 
 def build(**config):
     mod_args = {
-        # "input_c": 2*config["y_dim_emb"][1],
-        # "output_c": config["x_dim"][1],
-        # "depth": config["depth"],
-        # "input_hidden": config["input_h"],
-        # "type": "1D",
-        "in_d":torch.tensor(config["x_dim"]).prod() + torch.tensor(config["y_dim_emb"]).prod(),
-        'out_d': torch.tensor(config["x_dim"]).prod()
+        "input_c": 2*config["y_dim_emb"][1],
+        "output_c": config["x_dim"][1],
+        "depth": config["depth"],
+        "input_hidden": config["input_h"],
+        "type": "1D",
+        # "in_d":torch.tensor(config["x_dim"]).prod() + torch.tensor(config["y_dim_emb"]).prod(),
+        # 'out_d': torch.tensor(config["x_dim"]).prod()
     }
 
     mask = None
@@ -150,6 +150,7 @@ def Score_train(i: int):
 
     # Network
     conv_npe = build(**config).cuda()
+    wandb.watch(conv_npe, log = 'all', log_freq = 128)
     size = sum(param.numel() for param in conv_npe.parameters())
     run.config.num_param = size
 
