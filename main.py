@@ -221,7 +221,7 @@ plt.show()
 
 with torch.no_grad():
     x_s = (
-        model.sample(y.to(device), t.to(device), 2**10, x_ref = x)
+        model.sample(y.to(device), t.to(device), 2**10)
         .squeeze()
         .detach()
         .cpu()

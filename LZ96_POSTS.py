@@ -22,8 +22,8 @@ from zuko.distributions import DiagNormal
 from zuko.flows import Unconditional
 from dasbi.inference.models import VPScorePosterior as NSE
 from dasbi.networks.embedding import EmbedObs
-# from dasbi.simulators.sim_lorenz96 import LZ96 as sim
-from dasbi.simulators.sim_dummy import Dummy as sim
+from dasbi.simulators.sim_lorenz96 import LZ96 as sim
+
 
 SCRATCH = os.environ.get("SCRATCH", ".")
 PATH = Path(SCRATCH) / "nse_post/lz96"
@@ -76,13 +76,13 @@ CONFIG = {
 
 def build(**config):
     mod_args = {
-        "input_c": 2*config["y_dim_emb"][1],
-        "output_c": config["x_dim"][1],
-        "depth": config["depth"],
-        "input_hidden": config["input_h"],
-        "type": "1D",
-        # "in_d":torch.tensor(config["x_dim"]).prod() + torch.tensor(config["y_dim_emb"]).prod(),
-        # 'out_d': torch.tensor(config["x_dim"]).prod()
+        # "input_c": 2*config["y_dim_emb"][1],
+        # "output_c": config["x_dim"][1],
+        # "depth": config["depth"],
+        # "input_hidden": config["input_h"],
+        # "type": "1D",
+        "in_d":torch.tensor(config["x_dim"]).prod() + torch.tensor(config["y_dim_emb"]).prod(),
+        'out_d': torch.tensor(config["x_dim"]).prod()
     }
 
     mask = None
@@ -207,8 +207,6 @@ def Score_train(i: int):
                 replace=False,
             )
 
-            print(yb.shape)
-            print(subset_data.shape)
             x, y, t = (
                 xb[subset_data],
                 torch.cat([yb[i - window + 1 : i + 1].unsqueeze(0) for i in subset_data], dim=0),

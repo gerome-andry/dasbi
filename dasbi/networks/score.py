@@ -10,7 +10,7 @@ class LayerNorm(nn.Module):
 
     def forward(self, x):
         var, mu = torch.var_mean(x, dim = self.dim, keepdim = True, unbiased = True)
-
+        # print(var, mu)
         return (x - mu)/(var + self.eps).sqrt()
     
 class AttentionSkip(nn.Module):
@@ -29,7 +29,7 @@ class AttentionSkip(nn.Module):
     def forward(self, x, q):
         w_att = self.act(q + self.scale_dpath(x))
         w_att = self.combine(self.up(w_att))
-        w_att = self.att_weights(self.act(w_att))
+        w_att = self.att_weights(w_att)
 
         return x*w_att
 
