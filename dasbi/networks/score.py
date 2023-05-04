@@ -66,7 +66,7 @@ class MLP(nn.Module):
         self.act = nn.ELU()
         
     def forward(self, x, k):
-        x = x + k 
+        x = x + k[..., None] 
         for l in self.net:
             x = l(self.act(x))
 
