@@ -207,6 +207,8 @@ def Score_train(i: int):
                 replace=False,
             )
 
+            print(y.shape)
+            print(subset_data.shape)
             x, y, t = (
                 xb[subset_data],
                 torch.cat([yb[i - window + 1 : i + 1].unsqueeze(0) for i in subset_data], dim=0),
