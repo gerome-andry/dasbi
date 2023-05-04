@@ -1,4 +1,4 @@
-from sim_utils import *
+from .sim_utils import *
 import torch 
 
 
