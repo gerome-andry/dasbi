@@ -50,8 +50,8 @@ class downUpLayer(nn.Module):
                                              padding_mode = 'circular') for i in range(n_c)])
 
     def forward(self, x):
-        x = self.ln(x)
         x = self.act(self.conv[0](x))
+        # x = self.ln(x)
         for c in self.conv[1:]:
             x = self.act(x + c(x))
 
