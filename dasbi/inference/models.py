@@ -11,7 +11,7 @@ import os
 os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 
 class VPScorePosterior(nn.Module):
-    def __init__(self, emb_net, state_dim, targ_c, eps = 1e-3, **score_args):
+    def __init__(self, emb_net, state_dim, eps = 1e-3, **score_args):
         super().__init__()
         # self.score = ScoreAttUNet(**score_args) # condition in the score input
         self.score = MLP(**score_args)

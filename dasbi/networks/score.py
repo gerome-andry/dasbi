@@ -59,6 +59,7 @@ class downUpLayer(nn.Module):
 
 class MLP(nn.Module):
     def __init__(self, in_d, out_d, hidden = 256, n_lay = 5):
+        super().__init__()
         self.net = nn.ModuleList([nn.Linear(in_d, hidden)])
         self.net.extend([nn.Linear(hidden, hidden) for _ in range(n_lay)])
         self.net.append(nn.Linear(hidden, out_d))
