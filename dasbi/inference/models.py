@@ -11,7 +11,7 @@ import os
 os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 
 class VPScorePosterior(nn.Module):
-    def __init__(self, emb_net, state_dim, eps = 1e-3, **score_args):
+    def __init__(self, emb_net, state_dim, targ_c, eps = 1e-3, **score_args):
         super().__init__()
         self.score = ScoreAttUNet(**score_args) # condition in the score input
         # self.score = MLP(**score_args)
@@ -19,7 +19,7 @@ class VPScorePosterior(nn.Module):
         self.embed = emb_net
         self.epsilon = eps 
         self.x_dim = state_dim
-        # self.x_imp = nn.Conv2d(self.x_dim[1], targ_c, 1)
+        self.x_imp = nn.Conv2d(self.x_dim[1], targ_c, 1)
         # t = torch.linspace(1,0,65)
         # plt.plot(t[:-1], self.mu(t[:-1]))
         # plt.plot(t[:-1], self.sigma(t[:-1]))
@@ -47,7 +47,7 @@ class VPScorePosterior(nn.Module):
         # print(x.shape, y_emb.shape)
 
         return (scaled_target - 
-                self.score(torch.cat((y_emb, x), dim = 1), noise_t)).square().mean()
+                self.score(torch.cat((y_emb, self.x_imp(x)), dim = 1), noise_t)).square().mean()
         # return (scaled_target - 
         #         self.score(torch.cat((y_emb, x), dim = 1).flatten(start_dim = 1), noise_t).reshape(dims)).square().mean()
 

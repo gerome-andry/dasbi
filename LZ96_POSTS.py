@@ -76,7 +76,7 @@ CONFIG = {
 
 def build(**config):
     mod_args = {
-        "input_c": config["y_dim_emb"][1] + config["x_dim"][1],
+        "input_c": 2*config["y_dim_emb"][1], #try with better state ! 
         "output_c": config["x_dim"][1],
         "depth": config["depth"],
         "input_hidden": config["input_h"],
@@ -99,7 +99,7 @@ def build(**config):
         conv_lay=config["embedding"],
         observer_mask=mask
     )
-    return NSE(emb_net, state_dim=config["x_dim"], **mod_args)
+    return NSE(emb_net, state_dim=config["x_dim"], targ_c = config["y_dim_emb"][1], **mod_args)
 
 
 def process_sim(simulator):
