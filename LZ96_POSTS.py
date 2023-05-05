@@ -150,7 +150,7 @@ def Score_train(i: int):
 
     # Network
     conv_npe = build(**config).cuda()
-    wandb.watch(conv_npe, log = 'all', log_freq = 128)
+    # wandb.watch(conv_npe, log = 'all', log_freq = 128)
     size = sum(param.numel() for param in conv_npe.parameters())
     run.config.num_param = size
 

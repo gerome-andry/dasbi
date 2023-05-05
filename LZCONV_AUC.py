@@ -50,6 +50,7 @@ ms_mod = {
     256: 4,
     512: 4,
 }
+
 CONFIG = {
     "observer_fp" : [f"experiments/observer{N}LZ.pickle"],
     "points" : [N],
