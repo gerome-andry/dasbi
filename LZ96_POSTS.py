@@ -29,8 +29,8 @@ SCRATCH = os.environ.get("SCRATCH", ".")
 PATH = Path(SCRATCH) / "nse_post/lz96"
 PATH.mkdir(parents=True, exist_ok=True)
 
-fact = 1
-N_grid = [2**i for i in range(3,4)]
+fact = 5
+N_grid = [2**i for i in range(3,9)]
 Y_grid = [int(np.ceil(x/4)) for x in N_grid]
 lN = len(N_grid)
 window = 10
@@ -270,7 +270,7 @@ def Score_train(i: int):
         )
 
         ### Checkpoint
-        if (prev_loss - loss_val) > .5e-3:
+        if (prev_loss - loss_val) > 1e-4:
             prev_loss = loss_val
             torch.save(
                 conv_npe.state_dict(),
