@@ -57,20 +57,20 @@ class downUpLayer(nn.Module):
 
         return x
 
-class MLP(nn.Module):
-    def __init__(self, in_d, out_d, hidden = 256, n_lay = 5):
-        super().__init__()
-        self.net = nn.ModuleList([nn.Linear(in_d, hidden)])
-        self.net.extend([nn.Linear(hidden, hidden) for _ in range(n_lay)])
-        self.net.append(nn.Linear(hidden, out_d))
-        self.act = nn.ELU()
+# class MLP(nn.Module):
+#     def __init__(self, in_d, out_d, hidden = 256, n_lay = 5):
+#         super().__init__()
+#         self.net = nn.ModuleList([nn.Linear(in_d, hidden)])
+#         self.net.extend([nn.Linear(hidden, hidden) for _ in range(n_lay)])
+#         self.net.append(nn.Linear(hidden, out_d))
+#         self.act = nn.ELU()
         
-    def forward(self, x, k):
-        x = x + k[..., None] 
-        for l in self.net:
-            x = l(self.act(x))
+#     def forward(self, x, k):
+#         x = x + k[..., None] 
+#         for l in self.net:
+#             x = l(self.act(x))
 
-        return x 
+#         return x 
     
 class ScoreAttUNet(nn.Module):
     def __init__(self, input_c = 1, output_c = 1, depth = 3, 

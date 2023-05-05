@@ -43,7 +43,7 @@ class VPScorePosterior(nn.Module):
         noise_t = torch.rand((x.shape[0])).to(x)
         y_emb = self.embed(y, t)
         x, scaled_target = self(x, noise_t)
-        dims = x.shape
+        # dims = x.shape
         # print(x.shape, y_emb.shape)
 
         return (scaled_target - 
@@ -81,10 +81,10 @@ class VPScorePosterior(nn.Module):
             # print(t_n, ratio)
             # print(self.sigma(t_n), self.sigma(t_n - dt))
             
-            plt.clf()
-            plt.plot(x.mean(dim= (0,1,3)).detach())
-            plt.show(block = False)
-            plt.pause(.1)
+            # plt.clf()
+            # plt.plot(x.mean(dim= (0,1,3)).detach())
+            # plt.show(block = False)
+            # plt.pause(.1)
 
         # exit()
         return x.reshape((n,-1,) + self.x_dim[1:]) #(x - x.mean())/x.std()

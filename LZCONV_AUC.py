@@ -95,7 +95,7 @@ def process_sim(simulator, x = True, y = True, t = True):
         simulator.time = (simulator.time - MUT) / SIGMAT
     
     ret_ls = [MUX, SIGMAX, MUY, SIGMAY, MUT, SIGMAT]
-    ret_ls = [x.to(CONFIG['device']) for x in ret_ls]
+    ret_ls = [x.to(CONFIG['device'][0]) for x in ret_ls]
 
     return ret_ls
 
