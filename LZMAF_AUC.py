@@ -49,7 +49,7 @@ CONFIG = {
     "val_sim" : [2**8],
     "x_dim": [(1, 1, N, 1)],
     "y_dim": [(1, window, N//4, 1)],
-    "epochs": [256],
+    "epochs": [512],
     "batch_size": [128],
     "step_per_batch": [512],
     "optimizer": ["AdamW"],

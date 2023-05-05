@@ -42,7 +42,7 @@ dp = {
     32 : 2,
     64 : 3,
     128 : 3,
-    256 : 3
+    256 : 4
 }
 
 CONFIG = {
@@ -270,7 +270,7 @@ def Score_train(i: int):
         )
 
         ### Checkpoint
-        if (prev_loss - loss_val) > 1e-4:
+        if (prev_loss - loss_val) > 1e-5:
             prev_loss = loss_val
             torch.save(
                 conv_npe.state_dict(),
