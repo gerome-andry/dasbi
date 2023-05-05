@@ -1,5 +1,5 @@
 from ..networks.nfmodules import MSConv
-from ..networks.score import ScoreAttUNet, MLP
+from ..networks.score import ScoreAttUNet
 import torch
 import torch.nn as nn
 import numpy as np
