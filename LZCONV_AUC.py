@@ -93,8 +93,11 @@ def process_sim(simulator, x = True, y = True, t = True):
         simulator.obs = (simulator.obs - MUY) / SIGMAY
     if t:
         simulator.time = (simulator.time - MUT) / SIGMAT
+    
+    ret_ls = [MUX, SIGMAX, MUY, SIGMAY, MUT, SIGMAT]
+    ret_ls = [x.to(CONFIG['device']) for x in ret_ls]
 
-    return MUX, SIGMAX, MUY, SIGMAY, MUT, SIGMAT
+    return ret_ls
 
 @job(array=5, cpus=2, gpus=1, ram="32GB", time="2-10:00:00")
 def train_class(i: int):
