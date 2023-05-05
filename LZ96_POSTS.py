@@ -29,8 +29,8 @@ SCRATCH = os.environ.get("SCRATCH", ".")
 PATH = Path(SCRATCH) / "nse_post/lz96"
 PATH.mkdir(parents=True, exist_ok=True)
 
-fact = 5
-N_grid = [2**i for i in range(3,9)]
+fact = 1
+N_grid = [2**i for i in range(3,4)]
 Y_grid = [int(np.ceil(x/4)) for x in N_grid]
 lN = len(N_grid)
 window = 10

@@ -51,9 +51,8 @@ class downUpLayer(nn.Module):
 
     def forward(self, x):
         x = self.act(self.conv[0](x))
-        # x = self.ln(x)
         for c in self.conv[1:]:
-            x = self.act(x + c(x))
+            x = self.act(x + c(self.ln(x)))
 
         return x
 
