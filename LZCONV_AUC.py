@@ -111,7 +111,10 @@ def train_class(i: int):
         observer = pickle.load(handle)
 
     gr = 'step' if window == 1 else 'assim'
-    run = wandb.init(project="dasbi", config=config, group=f"LZ96_diag_{gr}")
+    if y_mode: 
+        run = wandb.init(project="dasbi", config=config, group=f"LZ96_diag_{gr}_obs")
+    else:
+        run = wandb.init(project="dasbi", config=config, group=f"LZ96_diag_{gr}")
     runpath = PATH / f"runs/{run.name}_{run.id}"
     runpath.mkdir(parents=True, exist_ok=True)
 
