@@ -142,7 +142,7 @@ def train_class(i: int):
                              type = '1D').to(config['device'])
     else:    
         classifier = SampleCheck(config["x_dim"], config["y_dim"], 
-                             reduce = int(np.log2(config["points"])) - 1, 
+                             reduce = int(np.log2(config["points"])) - 2, 
                              type = '1D').to(config['device'])
     # So we always have 2 features at the end of convolution extraction part
     size = sum(param.numel() for param in classifier.parameters())
