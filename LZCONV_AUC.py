@@ -28,7 +28,7 @@ PATH.mkdir(parents=True, exist_ok=True)
 
 window = 10
 N = 8
-y_mode = False 
+# y_mode = False 
 
 # N_grid = [2**i for i in range(3,10)]
 # lN = len(N_grid)
@@ -59,7 +59,7 @@ CONFIG = {
     "val_sim" : [2**8],
     "x_dim": [(1, 1, N, 1)],
     "y_dim": [(1, window, N//4, 1)],
-    "epochs": [256],
+    "epochs": [512],
     "batch_size": [128],
     "step_per_batch": [512],
     "optimizer": ["AdamW"],
@@ -99,7 +99,7 @@ def process_sim(simulator, x = True, y = True, t = True):
 
     return ret_ls
 
-@job(array=5, cpus=2, gpus=1, ram="32GB", time="2-10:00:00")
+@job(array=10, cpus=2, gpus=1, ram="32GB", time="2-10:00:00")
 def train_class(i: int):
     # config = {key: random.choice(values) for key, values in CONFIG.items()}
     y_mode = i >= 5
