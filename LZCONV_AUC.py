@@ -170,7 +170,7 @@ def train_class(i: int):
     if config["optimizer"] == "AdamW":
         optimizer = torch.optim.AdamW(
             classifier.parameters(),
-            lr=1e-3,
+            lr=1e-5,
             weight_decay=1e-4,
         )
     else:
