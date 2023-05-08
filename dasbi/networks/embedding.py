@@ -17,60 +17,7 @@ class EmbedObs(nn.Module):
         self.extract = nn.ModuleList([nn.Conv2d(16*(conv_lay+1), 32, 1),
                                       nn.Conv2d(32, self.x_shape[1] - time_features - 2, 1)])
         self.act = nn.ELU()
-        # h, w = out_shape[-2:]
-        # self.obs = observer_mask
-        # self.act = nn.ELU()
-        # self.register_buffer(
-        #     "freq",
-        #     torch.cat([torch.arange(i, i + h // 2) for i in range(1, w + 1)])
-        #     * torch.pi,
-        # )
-
-        # self.extract = nn.ModuleList(
-        #     [
-        #         nn.Conv2d(self.y_shape[1] if i == 0 else 4 * i + self.y_shape[1], self.y_shape[1] + 4 * (i + 1), 1)#, padding = 1)
-        #         for i in range(conv_lay)
-        #     ]
-        # )
-        # # self.ln = nn.ModuleList(
-        # #     [
-        # #         nn.LayerNorm(self.y_shape[-2:])
-        # #         for i in range(conv_lay)
-        # #     ]
-        # # )
-
-
-        # # assumption obs have smaller size than x
-        # if self.obs is None:
-        #     # self.upsample = nn.ConvTranspose2d(
-        #     #     4 * conv_lay,
-        #     #     32,
-        #     #     (
-        #     #         self.x_shape[-2] - self.y_shape[-2] + 1,
-        #     #         self.x_shape[-1] - self.y_shape[-1] + 1,
-        #     #     ),
-        #     # )
-        #     self.upsample = nn.Upsample(tuple(self.x_shape[-2:]))
-
-        # last_c = self.x_shape[1]*4
-        # self.mix_up = nn.ModuleList([nn.Conv2d(4*conv_lay, 32, 1), nn.Conv2d(32, last_c, 3, padding = 1)])
-        # self.head = nn.Conv2d(last_c, self.x_shape[1] - 1, 1)
-
-    # def time_embed(self, t):
-    #     # extend to multiple times
-    #     # time between 0 and 1 ?
-    #     t = self.freq * t[..., None]
-    #     t = t.transpose(0, 1)
-    #     t = torch.cat(
-    #         [torch.stack([tc, ts], dim=1) for tc, ts in zip(t.cos(), t.sin())], dim=-1
-    #     )
-    #     # import matplotlib.pyplot as plt
-    #     # plt.imshow(t)
-    #     # plt.show()
-    #     # plt.clf()
-    #     t = t.reshape((-1, 1) + self.x_shape[2:])
-
-    #     return t
+        
 
     def forward(self, y, t):
         b = y.shape[0]

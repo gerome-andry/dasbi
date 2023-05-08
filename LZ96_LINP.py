@@ -76,7 +76,7 @@ CONFIG = {
 
 def build(**config):
     mod_args = {
-        "input_c": 5 + config["y_dim_emb"][1], #temporal and state as before! 
+        "input_c": 5 + 2 + config["y_dim_emb"][1], #temporal + pos + extended state as before! 
         "output_c": config["x_dim"][1],
         "depth": config["depth"],
         "input_hidden": config["input_h"],

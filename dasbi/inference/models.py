@@ -1,6 +1,6 @@
 from ..networks.nfmodules import MSConv
 from ..networks.score import ScoreAttUNet
-from ..diagnostic.classifier import TimeEmb
+from ..diagnostic.classifier import TimeEmb, pos_embed
 import torch
 import torch.nn as nn
 import numpy as np
@@ -87,6 +87,7 @@ class VPScoreLinear(nn.Module):
         self.noise_sig = noise #spatial dim of y
         self.embed = TimeEmb(5)
         self.gam = gamma
+        self.register_buffer('s_emb', pos_embed(self.x_dim[-2:]))
 
     def mu(self, t):
         return self.alpha(t)
@@ -103,10 +104,11 @@ class VPScoreLinear(nn.Module):
     def loss(self, x, t):
         noise_t = torch.rand((x.shape[0])).to(x)
         t_emb = self.embed(t, x.shape[-2:])
+        s_emb = self.s_emb.expand(x.shape[0],-1,-1,-1)
         x, scaled_target = self(x, noise_t)
 
         return (scaled_target - 
-                self.score(torch.cat((t_emb, self.x_imp(x)), dim = 1), noise_t)).square().mean()
+                self.score(torch.cat((t_emb, s_emb, self.x_imp(x)), dim = 1), noise_t)).square().mean()
     
     def composed_rscore(self, x, y, noise_t, scales):
         # t_emb = self.embed(t, x.shape[-2:])
@@ -133,6 +135,7 @@ class VPScoreLinear(nn.Module):
     def sample(self, y, t, n, steps = 128, corr = 0):
         denoise_time = torch.linspace(1,0,steps + 1).to(y)
         t_emb = self.embed(t, self.x_dim[-2:])
+        s_emb = self.s_emb.expand(x.shape[0],-1,-1,-1)#deal with dim
         
         t_shapes = t_emb.shape
         t_emb = t_emb[None,...].expand(n,-1,-1,-1,-1).reshape((-1,) + t_shapes[-3:])
@@ -146,7 +149,7 @@ class VPScoreLinear(nn.Module):
         for t_n in denoise_time[:-1]:
             score_tn = t_n.unsqueeze(0).repeat(n*t_shapes[0])
             ratio = self.mu(t_n-dt)/self.mu(t_n)
-            s = self.composed_rscore(torch.cat((self.x_imp(x), t_emb), dim = 1), y, score_tn) #repeat obs here !!!
+            s = self.composed_rscore(torch.cat((t_emb, s_emb, self.x_imp(x)), dim = 1), y, score_tn) #repeat obs here !!!
 
             x = ratio*x + (self.sigma(t_n - dt) - 
                            ratio*self.sigma(t_n))*s
