@@ -105,7 +105,8 @@ class MSConv(Transform):
         emb_context = [y]
         for c_y in self.conv_y:
             y, _ = self.ssplit(y)
-            emb_context.append(c_y(y))
+            y = c_y(y)
+            emb_context.append(y)
         emb_context.reverse()
 
         b, c, h, w = z.shape

@@ -129,7 +129,7 @@ class InvConv(Transform):
         weights = self.conv_kern(self.net(self.kernel, context))
         x_p = self.triang_pad(x)
         _,_,hp,wp = x_p.shape
-        z = nn.functional.conv2d(x_p.view(1,b*c,hp,wp), weights.view((b*c,1,) + weights.shape[-2:]), groups = b*c)
+        z = nn.functional.conv2d(x_p.reshape(1,b*c,hp,wp), weights.reshape((b*c,1,) + weights.shape[-2:]), groups = b*c)
         z = z.reshape((b,c,h,w))
 
         ladj = z.new_zeros(b)
@@ -147,7 +147,7 @@ class InvConv(Transform):
             x,_ = self.act.inverse(z)
             
         weights = self.conv_kern(self.net(self.kernel, context))
-        c_mat = self.fc_from_conv(weights.view(b*c,weights.shape[-2], weights.shape[-1]), z.view(b*c,h,w))
+        c_mat = self.fc_from_conv(weights.reshape(b*c,weights.shape[-2], weights.shape[-1]), z.reshape(b*c,h,w))
         x = z#.permute((0, 2, 3, 1))
         x = x.reshape((b* c , h * w))
         x = torch.linalg.solve(c_mat, x).reshape(b, c, h, w)#.permute((0, 3, 1, 2))
