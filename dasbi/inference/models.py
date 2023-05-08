@@ -1,5 +1,6 @@
 from ..networks.nfmodules import MSConv
 from ..networks.score import ScoreAttUNet
+from ..diagnostic.classifier import TimeEmb
 import torch
 import torch.nn as nn
 import numpy as np
@@ -9,6 +10,7 @@ import matplotlib.pyplot as plt
 import os               
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
+
 
 class VPScorePosterior(nn.Module):
     def __init__(self, emb_net, state_dim, targ_c, eps = 1e-3, **score_args):
@@ -51,7 +53,7 @@ class VPScorePosterior(nn.Module):
         # return (scaled_target - 
         #         self.score(torch.cat((y_emb, x), dim = 1).flatten(start_dim = 1), noise_t).reshape(dims)).square().mean()
 
-    def sample(self, y, t, n, steps = 64, x_ref = None):
+    def sample(self, y, t, n, steps = 128, x_ref = None):
         denoise_time = torch.linspace(1,0,steps + 1).to(y)
         y_emb = self.embed(y, t)
         y_shapes = y_emb.shape
@@ -66,50 +68,78 @@ class VPScorePosterior(nn.Module):
             score_tn = t_n.unsqueeze(0).repeat(n*y_shapes[0])
             ratio = self.mu(t_n-dt)/self.mu(t_n)
             s = self.score(torch.cat((y_emb, self.x_imp(x)), dim = 1), score_tn)
-            # if x_ref is not None:
-            #     print("Expected µ:", self.mu(t_n)*x_ref.squeeze(), "sigm", self.sigma(t_n))
 
             x = ratio*x + (self.sigma(t_n - dt) - 
                            ratio*self.sigma(t_n))*s
             
-            # z = torch.randn_like(x)
-            # x = x - (dt/self.sigma(t_n))*s + math.sqrt(2*dt)*z
-
-            # if x_ref is not None:
-            #     print("Sampled µ:", x.mean(dim = (0,1,3)), "sigm", x.std(dim = (0,1,3)))
-
-            # print(t_n, ratio)
-            # print(self.sigma(t_n), self.sigma(t_n - dt))
-            
-            # plt.clf()
-            # plt.plot(x.mean(dim= (0,1,3)).detach())
-            # plt.show(block = False)
-            # plt.pause(.1)
-
-        # exit()
-        return x.reshape((n,-1,) + self.x_dim[1:]) #(x - x.mean())/x.std()
+        return x.reshape((n,-1,) + self.x_dim[1:])
 
 
-class lampeNSE(nn.Module):
-    def __init__(self, emb, NSE):
+class VPScoreLinear(VPScorePosterior):
+    def __init__(self, state_dim, targ_c, observer, noise, gamma = 1e-2, eps = 1e-3, **score_args):
         super().__init__()
-        self.flow = NSE
-        self.embed = emb
-    
-    def forward(self, x, y, t):
-        y_t = self.embed(y,t)
-        batch = x.shape[0]
-        return self.flow(x.reshape((batch, -1)), y_t.reshape(batch, -1))
+        self.score = ScoreAttUNet(**score_args) # condition in the score input
+        self.alpha = lambda t : torch.cos(math.acos(math.sqrt(eps))*t)**2
+        self.epsilon = eps 
+        self.x_dim = state_dim
+        self.x_imp = nn.Conv2d(self.x_dim[1], targ_c, 1)
+        self.obs = observer 
+        self.noise_sig = noise #spatial dim of y
+        self.embed = TimeEmb(5)
+        self.gam = gamma
 
-    def sample(self, y, t, n):
-        y_t = self.embed(y,t)
-        batch = y_t.shape[0]
-        return self.flow.flow(y_t.reshape((batch, -1))).sample((n,))
+    def loss(self, x, t):
+        noise_t = torch.rand((x.shape[0])).to(x)
+        t_emb = self.embed(t, x.shape[-2:])
+        x, scaled_target = self(x, noise_t)
+
+        return (scaled_target - 
+                self.score(torch.cat((t_emb, self.x_imp(x)), dim = 1), noise_t)).square().mean()
     
-    def loss(self, x, y, t):
-        log_p = self(x,y,t)
-        return -log_p.mean()
-    
+    def composed_rscore(self, x, y, noise_t, scales):
+        # t_emb = self.embed(t, x.shape[-2:])
+        s_m = self.score(x, noise_t)
+        mu, sigma = self.mu(noise_t[0]), self.sigma(noise_t[0])
+
+        if sigma / mu > 2:
+            return s_m
+        
+        with torch.enable_grad():
+            x = x.detach().requires_grad_(True)
+
+            x_hat = (x - sigma*s_m)/mu
+            device = x_hat.device
+            x_hat = self.obs.observe(x_hat.cpu()).to(device)
+            var = (self.noise_sig/scales)**2 + self.gam*(sigma/mu)**2
+            mlogp = (((y - x_hat)**2)/var).sum()/2
+
+        s_l, = torch.autograd.grad(mlogp, x)
+
+        return s_m + sigma*s_l
+
+
+    def sample(self, y, t, n, steps = 128, corr = 0):
+        denoise_time = torch.linspace(1,0,steps + 1).to(y)
+        t_emb = self.embed(t, self.x_dim[-2:])
+        
+        t_shapes = t_emb.shape
+        t_emb = t_emb[None,...].expand(n,-1,-1,-1,-1).reshape((-1,) + t_shapes[-3:])
+        
+        dt = 1/steps 
+
+        sample_sz = list(self.x_dim)
+        sample_sz[0] = n*t_shapes[0]
+        x = torch.randn(sample_sz).to(y)
+
+        for t_n in denoise_time[:-1]:
+            score_tn = t_n.unsqueeze(0).repeat(n*t_shapes[0])
+            ratio = self.mu(t_n-dt)/self.mu(t_n)
+            s = self.composed_rscore(torch.cat((self.x_imp(x), t_emb), dim = 1), y, score_tn) #repeat obs here !!!
+
+            x = ratio*x + (self.sigma(t_n - dt) - 
+                           ratio*self.sigma(t_n))*s
+            
+        return x.reshape((n,-1,) + self.x_dim[1:])
     
 
 class MafNPE(nn.Module):
