@@ -75,7 +75,7 @@ class VPScorePosterior(nn.Module):
         return x.reshape((n,-1,) + self.x_dim[1:])
 
 
-class VPScoreLinear(VPScorePosterior):
+class VPScoreLinear(nn.Module):
     def __init__(self, state_dim, targ_c, observer, noise, gamma = 1e-2, eps = 1e-3, **score_args):
         super().__init__()
         self.score = ScoreAttUNet(**score_args) # condition in the score input
@@ -88,6 +88,18 @@ class VPScoreLinear(VPScorePosterior):
         self.embed = TimeEmb(5)
         self.gam = gamma
 
+    def mu(self, t):
+        return self.alpha(t)
+
+    def sigma(self, t):
+        return (1 - self.alpha(t) ** 2 + self.epsilon**2).sqrt()
+    
+    def forward(self, x, t):# x -> shape of x
+        e = torch.randn_like(x)
+        x = self.mu(t[...,None,None,None])*x + self.sigma(t[...,None,None,None])*e
+
+        return x, e #sample x_t from p(x_t|x), rescaled target N(0,I)
+    
     def loss(self, x, t):
         noise_t = torch.rand((x.shape[0])).to(x)
         t_emb = self.embed(t, x.shape[-2:])
