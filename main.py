@@ -8,7 +8,7 @@ import torch
 
 from tqdm import tqdm
 
-from LZ96_POSTS import build
+from LZ96_LINP import build
 
 # GENERATE DATA AND OBSERVATIONS
 torch.manual_seed(42)
@@ -29,144 +29,153 @@ class myMOD(torch.nn.Module):
         self.flow = NSF
         self.emb = emb 
 # exit()
-# for i in range(3,10):
-#     N = 2**i
+for i in range(3,9):
+    N = 2**i
 # exit()
 
-n_sim = 2**10
-N = 8
-directory = "test"
-modelfname = f"experiments/{directory}/test.pth"
-observerfname = f"observer{N}LZ.pickle"
+# n_sim = 2**10
+# N = 8
+# directory = "test"
+# modelfname = f"experiments/{directory}/test.pth"
+    observerfname = f"observer{N}LZ.pickle"
 
-simulator = sim(N=N, noise=0.5)
-observer = ObservatorStation2D((N, 1), (3, 1), (1, 1), (2, 0), (.8, 1))
-with open(f"experiments/{observerfname}", "rb") as handle:
-    observer = pickle.load(handle)
-simulator.init_observer(observer)
+# simulator = sim(N=N, noise=0.5)
+# observer = ObservatorStation2D((N, 1), (3, 1), (1, 1), (2, 0), (.8, 1))
+# with open(f"experiments/{observerfname}", "rb") as handle:
+#     observer = pickle.load(handle)
+# simulator.init_observer(observer)
 
 
 # with open('experiments/observer32LZ.pickle', 'wb') as handle:
 #     pickle.dump(observer, handle, protocol=pickle.HIGHEST_PROTOCOL)
 # observer.visualize()
 
-tmax = 50
-traj_len = 1024 
-times = torch.linspace(0, tmax, traj_len)
+# tmax = 50
+# traj_len = 1024 
+# times = torch.linspace(0, tmax, traj_len)
 
-simulator.generate_steps(torch.randn((n_sim, N)), times)
-# print(simulator.data.shape)
+# simulator.generate_steps(torch.randn((n_sim, N)), times)
+# # print(simulator.data.shape)
 
-MUX = simulator.data.mean(dim=(0, 1))
-SIGMAX = simulator.data.std(dim=(0, 1))
+# MUX = simulator.data.mean(dim=(0, 1))
+# SIGMAX = simulator.data.std(dim=(0, 1))
 
-def preprocess_x(x):
-    return (x - MUX) / SIGMAX
-
-
-def postprocess_x(x):
-    return x * SIGMAX + MUX
+# def preprocess_x(x):
+#     return (x - MUX) / SIGMAX
 
 
-MUY = simulator.obs.mean(dim=(0, 1))
-SIGMAY = simulator.obs.std(dim=(0, 1))
+# def postprocess_x(x):
+#     return x * SIGMAX + MUX
 
 
-def preprocess_y(y):
-    return (y - MUY) / SIGMAY
+# MUY = simulator.obs.mean(dim=(0, 1))
+# SIGMAY = simulator.obs.std(dim=(0, 1))
 
 
-def postprocess_y(y):
-    return y * SIGMAY + MUY
+# def preprocess_y(y):
+#     return (y - MUY) / SIGMAY
 
 
-MUT = simulator.time.mean(dim=(0, 1))
-SIGMAT = simulator.time.std(dim=(0, 1))
-
-def preprocess_t(t):
-    return (t - MUT) / SIGMAT
+# def postprocess_y(y):
+#     return y * SIGMAY + MUY
 
 
-def postprocess_t(t):
-    return t * SIGMAT + MUT
+# MUT = simulator.time.mean(dim=(0, 1))
+# SIGMAT = simulator.time.std(dim=(0, 1))
 
+# def preprocess_t(t):
+#     return (t - MUT) / SIGMAT
+
+
+# def postprocess_t(t):
+#     return t * SIGMAT + MUT
+
+# # simulator.data = preprocess_x(simulator.data)
+# # simulator.obs = preprocess_y(simulator.obs)
+# # simulator.time = preprocess_t(simulator.time)
+# # simulator.display_sim(obs=True, delay = 10)
+
+# start = 50
+# finish = 100
+    window = 1
+# # TRAIN A MODEL
+# simulator.data = simulator.data[:, start:finish]
+# simulator.obs = simulator.obs[:, start - window + 1 : finish]
+# simulator.time = simulator.time[:, start:finish]
+
+# simulator.display_sim(obs=True, filename=f"experiments/{directory}/hovGT")
 # simulator.data = preprocess_x(simulator.data)
 # simulator.obs = preprocess_y(simulator.obs)
 # simulator.time = preprocess_t(simulator.time)
-# simulator.display_sim(obs=True, delay = 10)
+# base = Unconditional(
+#     DiagNormal,
+#     torch.zeros(N),
+#     torch.ones(N),
+#     buffer=True,
+# )
 
-start = 50
-finish = 100
-window = 10
-# TRAIN A MODEL
-simulator.data = simulator.data[:, start:finish]
-simulator.obs = simulator.obs[:, start - window + 1 : finish]
-simulator.time = simulator.time[:, start:finish]
+    nms_dict = {
+        8: 2,
+        16: 2,
+        32: 2,
+        64: 3,
+        128: 3,
+        256: 4,
+        512: 4,
+    }
+    dp = {
+        8 : 2,
+        16 : 2,
+        32 : 2,
+        64 : 3,
+        128 : 3,
+        256 : 4
+    }
 
-simulator.display_sim(obs=True, filename=f"experiments/{directory}/hovGT")
-simulator.data = preprocess_x(simulator.data)
-simulator.obs = preprocess_y(simulator.obs)
-simulator.time = preprocess_t(simulator.time)
-base = Unconditional(
-    DiagNormal,
-    torch.zeros(N),
-    torch.ones(N),
-    buffer=True,
-)
+    chan = {
+        8 : 60,
+        16 : 61,
+        32 : 62,
+        64 : 53,
+        128 : 54,
+        256 : 54
+    }
 
-nms_dict = {
-    8: 2,
-    16: 2,
-    32: 2,
-    64: 3,
-    128: 3,
-    256: 4,
-    512: 4,
-}
-dp = {
-    8 : 2,
-    16 : 2,
-    32 : 2,
-    64 : 3,
-    128 : 3,
-    256 : 3
-}
-
-config = {
-    "embedding": 3,
-    "kernel_size": 2,
-    "ms_modules": int(np.log(N)/np.log(4)) if N >= 128 else 1,
-    "N_ms": nms_dict[N],
-    "ms_modules": 1 + N//256,
-    "num_conv": 2,
-    "N_ms": 2 + N//128,
-    "hf": [32*int(N**0.5), ]*4,
-    "tf": 3 + N//256,
-    "depth": dp[N],
-    "input_h": 45 + int(np.log2(N)),
-    # Training
-    "epochs": 256,
-    "batch_size": 64,
-    "step_per_batch": 64,
-    "optimizer": "AdamW",
-    "learning_rate": 3e-3,  # np.geomspace(1e-3, 1e-4).tolist(),
-    "weight_decay": 1e-4,  # np.geomspace(1e-2, 1e-4).tolist(),
-    "scheduler": "linear",  # , 'cosine', 'exponential'],
-    # Data
-    "points": N,
-    "noise": 0.5,
-    "train_sim": 2**10,
-    "val_sim": 2**8,
-    "device": "cpu",
-    # Test with assimilation window
-    "x_dim": (1, 1, N, 1),
-    "y_dim": (1, window, N//4, 1),
-    "y_dim_emb": (1, 11, N, 1),
-    'obs_mask': True,
-    'roll': True,
-    'ar': False,
-    "observer_fp": f"experiments/{observerfname}",
-}
+    config = {
+        "embedding": 3,
+        "kernel_size": 2,
+        "ms_modules": int(np.log(N)/np.log(4)) if N >= 128 else 1,
+        "N_ms": nms_dict[N],
+        "ms_modules": 1 + N//256,
+        "num_conv": 2,
+        "N_ms": 2 + N//128,
+        "hf": [32*int(N**0.5), ]*4,
+        "tf": 3 + N//256,
+        "depth": dp[N],
+        "input_h": chan[N],
+        # Training
+        "epochs": 256,
+        "batch_size": 64,
+        "step_per_batch": 64,
+        "optimizer": "AdamW",
+        "learning_rate": 3e-3,  # np.geomspace(1e-3, 1e-4).tolist(),
+        "weight_decay": 1e-4,  # np.geomspace(1e-2, 1e-4).tolist(),
+        "scheduler": "linear",  # , 'cosine', 'exponential'],
+        # Data
+        "points": N,
+        "noise": 0.5,
+        "train_sim": 2**10,
+        "val_sim": 2**8,
+        "device": "cpu",
+        # Test with assimilation window
+        "x_dim": (1, 1, N, 1),
+        "y_dim": (1, window, N//4, 1),
+        "y_dim_emb": (1, 11, N, 1),
+        'obs_mask': True,
+        'roll': True,
+        'ar': False,
+        "observer_fp": f"experiments/{observerfname}",
+    }
 
 # from math import sqrt
 # model = NPE(N, 5*N, build = NSF, passes = 2, hidden_features = [4*int(sqrt(N)),4*int(sqrt(N))], transforms = 2 + N//256)
@@ -181,9 +190,9 @@ config = {
 # print('NSF:',sum(param.numel() for param in model.parameters()))
 
 # print(config)
-device = "cpu"
-model = build(**config).to(device)
-print('NPE:',sum(param.numel() for param in model.parameters()))
+    device = "cpu"
+    model = build(**config).to(device)
+    print('NPE:',sum(param.numel() for param in model.parameters()))
 
 # with torch.no_grad():
 #     model(
@@ -221,7 +230,7 @@ plt.show()
 
 with torch.no_grad():
     x_s = (
-        model.sample(y.to(device), t.to(device), 2**10)
+        model.sample(y.to(device), t.to(device), 2**10, SIGMAY)
         .squeeze()
         .detach()
         .cpu()
@@ -248,7 +257,7 @@ y_s = simulator.observe(x_s)
 fig = corner(y_s, smooth=2, figsize=(6.8, 6.8), legend="q(y | y*)")
 fig = corner(simulator.obs[:,window - 1], smooth = 2, legend="p(y)", figure = fig)
 
-y_star = y.squeeze()[-1] 
+y_star = y.squeeze()#[-1] 
 mark_point(fig, y_star)
 
 fig.savefig(f"experiments/{directory}/cornerNPEObs.pdf")
@@ -268,11 +277,11 @@ if config['ar']:
     x_ar = x_ar[:, None, :, None].to(device)
 
 # ASSIM :
-y = torch.cat(
-    [y[i : i + window].unsqueeze(0) for i, _ in enumerate(y[: -window + 1])], dim=0
-)
+# y = torch.cat(
+#     [y[i : i + window].unsqueeze(0) for i, _ in enumerate(y[: -window + 1])], dim=0
+# )
 # 1 STEP :
-# y = y.unsqueeze(1)
+y = y.unsqueeze(1)
 samp = model.sample(y.to(device), t.to(device), 16).squeeze().detach().cpu()
 # print(samp.shape)
 y_samp = simulator.observe(postprocess_x(samp)).mean((0))

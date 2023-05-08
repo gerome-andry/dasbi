@@ -4,7 +4,7 @@ from ..diagnostic.classifier import TimeEmb, pos_embed
 import torch
 import torch.nn as nn
 import numpy as np
-from tqdm import trange
+from tqdm import trange, tqdm
 import math
 import matplotlib.pyplot as plt
 import os               
@@ -110,9 +110,9 @@ class VPScoreLinear(nn.Module):
         return (scaled_target - 
                 self.score(torch.cat((t_emb, s_emb, self.x_imp(x)), dim = 1), noise_t)).square().mean()
     
-    def composed_rscore(self, x, y, noise_t, scales):
+    def composed_rscore(self, st, x, y, noise_t, scales):
         # t_emb = self.embed(t, x.shape[-2:])
-        s_m = self.score(x, noise_t)
+        s_m = self.score(torch.cat((st,self.x_imp(x)), dim = 1), noise_t)
         mu, sigma = self.mu(noise_t[0]), self.sigma(noise_t[0])
 
         if sigma / mu > 2:
@@ -122,38 +122,53 @@ class VPScoreLinear(nn.Module):
             x = x.detach().requires_grad_(True)
 
             x_hat = (x - sigma*s_m)/mu
+
             device = x_hat.device
             x_hat = self.obs.observe(x_hat.cpu()).to(device)
+            
             var = (self.noise_sig/scales)**2 + self.gam*(sigma/mu)**2
             mlogp = (((y - x_hat)**2)/var).sum()/2
 
         s_l, = torch.autograd.grad(mlogp, x)
-
         return s_m + sigma*s_l
 
 
-    def sample(self, y, t, n, steps = 128, corr = 0):
+    def sample(self, y, t, n, scales, steps = 100, corr = 3, tau = .25):
         denoise_time = torch.linspace(1,0,steps + 1).to(y)
         t_emb = self.embed(t, self.x_dim[-2:])
-        s_emb = self.s_emb.expand(x.shape[0],-1,-1,-1)#deal with dim
-        
-        t_shapes = t_emb.shape
-        t_emb = t_emb[None,...].expand(n,-1,-1,-1,-1).reshape((-1,) + t_shapes[-3:])
+        s_emb = self.s_emb.expand(y.shape[0],-1,-1,-1)#deal with dim
+        st_emb = torch.cat((t_emb, s_emb), dim = 1)
+
+        st_shapes = st_emb.shape
+        st_emb = st_emb[None,...].expand(n,-1,-1,-1,-1).reshape((-1,) + st_shapes[-3:]) 
+
+        y = y[None,...].expand(n,-1,-1,-1,-1).reshape((-1,) + y.shape[-3:])
         
         dt = 1/steps 
 
         sample_sz = list(self.x_dim)
-        sample_sz[0] = n*t_shapes[0]
+        sample_sz[0] = n*st_shapes[0]
         x = torch.randn(sample_sz).to(y)
 
-        for t_n in denoise_time[:-1]:
-            score_tn = t_n.unsqueeze(0).repeat(n*t_shapes[0])
+        for t_n in tqdm(denoise_time[:-1]):
+            score_tn = t_n.unsqueeze(0).repeat(n*st_shapes[0])
             ratio = self.mu(t_n-dt)/self.mu(t_n)
-            s = self.composed_rscore(torch.cat((t_emb, s_emb, self.x_imp(x)), dim = 1), y, score_tn) #repeat obs here !!!
+            s = self.composed_rscore(st_emb, x, y, score_tn, scales) #USE COMPOSED SCORE !!
 
             x = ratio*x + (self.sigma(t_n - dt) - 
                            ratio*self.sigma(t_n))*s
             
+            for _ in range(corr):
+                eps = torch.randn_like(x)
+                s = -self.composed_rscore(st_emb, x, y, score_tn - dt, scales) / self.sigma(t_n - dt)
+                delta = tau / s.square().mean(dim=(1,2,3), keepdim=True)
+
+                x = x + delta * s + torch.sqrt(2 * delta) * eps
+            # plt.clf()
+            # plt.imshow(x.squeeze().item())
+            # plt.show(block = False)
+            # plt.pause(.1)
+
         return x.reshape((n,-1,) + self.x_dim[1:])
     
 

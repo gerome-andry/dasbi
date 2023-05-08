@@ -29,11 +29,11 @@ SCRATCH = os.environ.get("SCRATCH", ".")
 PATH = Path(SCRATCH) / "nse_lin/lz96"
 PATH.mkdir(parents=True, exist_ok=True)
 
-fact = 1
-N_grid = [2**i for i in range(3,4)]
+fact = 5
+N_grid = [2**i for i in range(3,9)]
 Y_grid = [int(np.ceil(x/4)) for x in N_grid]
 lN = len(N_grid)
-window = 10
+window = 1
 max_epochs = 2048
 
 dp = {
@@ -45,11 +45,20 @@ dp = {
     256 : 4
 }
 
+chan = {
+    8 : 60,
+    16 : 61,
+    32 : 62,
+    64 : 53,
+    128 : 54,
+    256 : 54
+}
+
 CONFIG = {
     # Architecture
     "embedding": [3]*lN,
     "depth": [dp[k] for k in N_grid],
-    "input_h": [50 + int(np.log2(k)) for k in N_grid],
+    "input_h": [chan[k] for k in N_grid],
     "N_ms": ["score_lin"]*lN,
     # Training
     # "epochs": [512]*lN,
