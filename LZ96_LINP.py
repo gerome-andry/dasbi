@@ -49,7 +49,7 @@ CONFIG = {
     # Architecture
     "embedding": [3]*lN,
     "depth": [dp[k] for k in N_grid],
-    "input_h": [64 + int(np.log2(k)) for k in N_grid],
+    "input_h": [45 + int(np.log2(k)) for k in N_grid],
     "N_ms": ["score_lin"]*lN,
     # Training
     # "epochs": [512]*lN,
@@ -76,7 +76,7 @@ CONFIG = {
 
 def build(**config):
     mod_args = {
-        "input_c": 5 + 2 + config["y_dim_emb"][1], #temporal + pos + extended state as before! 
+        "input_c": 2*config["y_dim_emb"][1], #temporal + pos + extended state as before! 
         "output_c": config["x_dim"][1],
         "depth": config["depth"],
         "input_hidden": config["input_h"],
@@ -100,7 +100,7 @@ def build(**config):
     #     observer_mask=mask
     # )emb_net, state_dim=config["x_dim"], targ_c = config["y_dim_emb"][1], **mod_args
 
-    return NSE(state_dim=config["x_dim"], targ_c=config["y_dim_emb"][1],
+    return NSE(state_dim=config["x_dim"], targ_c=2*config["y_dim_emb"][1] - 5 - 2,
                 observer=observer, noise = config['noise'], **mod_args)
 
 
