@@ -3,21 +3,28 @@ import torch
 import numpy as np           
 from LZ96_POSTS import build
 from dasbi.simulators.sim_2D import LZ2D as sim
+from dasbi.simulators.observators.observator2D import ObservatorStation2D as obs
 import os                   
 os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 import matplotlib.pyplot as plt
 import seaborn as sns 
 import time
+import pickle 
 
 if __name__ == "__main__":
+    torch.manual_seed(3)
     s = sim(N = 32, M = 32)
-    t = torch.linspace(0,20,200)
-    torch.manual_seed(42)
-    x0 = torch.randn((100,32, 32))
+    o = obs((32,32), (3,3), (3,3), (3,3), (1,1))
+    o.visualize()
+    # with open('experiments/observer2D.pickle', 'wb') as handle:
+    #     pickle.dump(o, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    s.init_observer(o)
+    t = torch.linspace(0,50,1024)
+    x0 = torch.randn((512,32, 32))
     # x0[:,:,:] = 0
     # x0[:,15,15] = torch.rand(1)
     tm = time.time()
-    s.generate_steps(x0,t, observe=False)
+    s.generate_steps(x0,t, observe=True)
     # print(s.data.shape)
     print(time.time() - tm)
     # mu = s.data[0,:,:,1:].mean(dim = 0)
@@ -25,11 +32,11 @@ if __name__ == "__main__":
     col = sns.color_palette("icefire", as_cmap=True)
     # s.data = s.vorticity(s.data)
     # s.data = s.data.std(dim = 0)
-    m, M = s.data.min(), s.data.max()
+    m, M = s.obs.min(), s.obs.max()
     # for d in range(8):
     #     plt.plot(s.data[0,:,d,d])
     # plt.show()
-    for dat_t in s.data[0]:
+    for dat_t in s.obs[0]:
         plt.clf()
         plt.imshow(dat_t, interpolation = 'spline16', cmap = col, vmin = m, vmax = M)
         plt.show(block=False)

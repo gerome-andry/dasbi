@@ -7,12 +7,11 @@ from tqdm import tqdm
 import seaborn as sns
 
 class LZ2D(Simulator):
-    def __init__(self, N, M, F=16,noise=0.1):
+    def __init__(self, N, M, F=16,noise=0.5):
         super().__init__()
         self.N = N
         self.M = M
         self.F = F
-        # self.c = c
         self.noise_amp = noise
 
     def generate_steps(self, x0, t_vect, observe=True):
@@ -31,27 +30,25 @@ class LZ2D(Simulator):
     def odefun(self, t, state): #state (B, N, M+1)
         X = state.view(-1, self.N, self.M)
         
-        # Xm1, Xm2, Xp1 = [torch.roll(X, i, dims = -2) for i in (1, 2, -1)]
-        # Ym1, Ym2, Yp1 = [torch.roll(X, i, dims = -1) for i in (1, 2, -1)]
         Xm1 = torch.roll(X, (1,1), dims = (-2, -1))
         Xm2 = torch.roll(Xm1, (1,1), dims = (-2,-1))
         Xp1 = torch.roll(X, (-1,-1), dims = (-2,-1))
 
-        # dX = Xp1 - Xm1 + Yp1 - Ym1
-        # dX2 =  Xp1 + Xm1 + Yp1 + Ym1 - 4*X
-
         dXdt = Xm1*(Xp1 - Xm2) - X + self.F 
 
         return dXdt.reshape(-1, self.N*self.M)
-        # X = state.view(-1, self.N, self.M)
-        
-        # Xm1, Xm2, Xp1 = [torch.roll(X, i, dims = -2) for i in (1, 2, -1)]
-        # Ym1, Ym2, Yp1 = [torch.roll(X, i, dims = -1) for i in (1, 2, -1)]
 
-        # dX = Xm1*(Xp1 - Xm2) - X + self.Fx \
-        #     + self.c * (Ym1*(Ym2 - Yp1) + X - self.Fy)
-        
-        # return dX.reshape(-1, self.N*self.M)
+    def observe(self, data=None):
+        if data is None:
+            data = self.data
+        # print(data.shape)
+        observation = self.observer.observe(data)
+        # print(self.obs.shape)
+
+        for i in range(observation.shape[0]):
+            observation[i] += self.noise_amp * torch.randn_like(observation[i])
+
+        return observation
     
     def vorticity(self, x):# (B,T,N,M)
         b,t,n,m = x.shape

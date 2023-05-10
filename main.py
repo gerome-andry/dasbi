@@ -29,26 +29,28 @@ class myMOD(torch.nn.Module):
         self.flow = NSF
         self.emb = emb 
 # exit()
-for i in range(3,9):
-    N = 2**i
+# for i in range(3,9):
+#     N = 2**i
 # exit()
 
-# n_sim = 2**10
-# N = 8
-# directory = "test"
-# modelfname = f"experiments/{directory}/test.pth"
-    observerfname = f"observer{N}LZ.pickle"
+n_sim = 2**10
+N = 8
+directory = "test"
+modelfname = f"experiments/{directory}/test.pth"
+observerfname = f"observer{N}LZ.pickle"
 
-# simulator = sim(N=N, noise=0.5)
-# observer = ObservatorStation2D((N, 1), (3, 1), (1, 1), (2, 0), (.8, 1))
-# with open(f"experiments/{observerfname}", "rb") as handle:
-#     observer = pickle.load(handle)
-# simulator.init_observer(observer)
+simulator = sim(N=N, noise=0.5)
+observer = ObservatorStation2D((N, 2), (3, 1), (1, 1), (2, 0), (.8, 1))
+with open(f"experiments/{observerfname}", "rb") as handle:
+    observer = pickle.load(handle)
+simulator.init_observer(observer)
 
 
 # with open('experiments/observer32LZ.pickle', 'wb') as handle:
 #     pickle.dump(observer, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
 # observer.visualize()
+# exit()
 
 # tmax = 50
 # traj_len = 1024 

@@ -89,10 +89,9 @@ class ObservatorStation2D:
         y_d = torch.clamp(self.station[1] - self.aoe[1], min=0)
         y_u = torch.clamp(self.station[1] + self.aoe[1] + 1, max=self.dims[1])
 
-        #
+
         if get_imp:
             importance = torch.zeros(self.dims)
-        #
         else:
             obs = torch.zeros(
             torch.Size(
@@ -101,6 +100,9 @@ class ObservatorStation2D:
                     )
                 )
             )
+            print(obs.shape)
+
+        
         for x, row in enumerate(x_l):
             for y, _ in enumerate(row):
                 #
