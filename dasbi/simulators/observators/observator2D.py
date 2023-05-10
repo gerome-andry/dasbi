@@ -100,7 +100,7 @@ class ObservatorStation2D:
                     )
                 )
             )
-            print(obs.shape)
+            # print(obs.shape)
 
         
         for x, row in enumerate(x_l):

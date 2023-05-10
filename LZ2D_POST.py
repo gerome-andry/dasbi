@@ -192,6 +192,7 @@ def Score_train(i: int):
         losses_val = []
 
         ### Train
+        print(simt.data.shape)
         i = np.random.choice(
             len(simt.data),
             size=batch_size,
