@@ -2,8 +2,40 @@ from dasbi.inference.models import VPScorePosterior
 import torch
 import numpy as np           
 from LZ96_POSTS import build
+from dasbi.simulators.sim_2D import LZ2D as sim
+import os                   
+os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
+import matplotlib.pyplot as plt
+import seaborn as sns 
+import time
 
 if __name__ == "__main__":
+    s = sim(N = 32, M = 32)
+    t = torch.linspace(0,20,200)
+    torch.manual_seed(42)
+    x0 = torch.randn((100,32, 32))
+    # x0[:,:,:] = 0
+    # x0[:,15,15] = torch.rand(1)
+    tm = time.time()
+    s.generate_steps(x0,t, observe=False)
+    # print(s.data.shape)
+    print(time.time() - tm)
+    # mu = s.data[0,:,:,1:].mean(dim = 0)
+    # std = s.data[0,:,:,:1:].std(dim = 0)
+    col = sns.color_palette("icefire", as_cmap=True)
+    # s.data = s.vorticity(s.data)
+    # s.data = s.data.std(dim = 0)
+    m, M = s.data.min(), s.data.max()
+    # for d in range(8):
+    #     plt.plot(s.data[0,:,d,d])
+    # plt.show()
+    for dat_t in s.data[0]:
+        plt.clf()
+        plt.imshow(dat_t, interpolation = 'spline16', cmap = col, vmin = m, vmax = M)
+        plt.show(block=False)
+        plt.pause(.1)
+
+    exit()
     import os
 
     dp = {

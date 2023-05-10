@@ -31,17 +31,17 @@ class LZ96(Simulator):
             # print("Starting observations")
             self.obs = self.observe(data=self.data)
 
-    def odefun(self, t, init_state):
-        D = torch.zeros(init_state.shape)
-        for i in range(self.N):
-            D[..., i] = (
-                (init_state[..., (i + 1) % self.N] - init_state[..., i - 2])
-                * init_state[..., i - 1]
-                - init_state[..., i]
-                + self.F
-            )
+    def odefun(self, t, state):
+        Xm1, Xm2, Xp1 = [torch.roll(state, i, dims = -1) for i in (1, 2, -1)]
+        # for i in range(self.N):
+        #     D[..., i] = (
+        #         (init_state[..., (i + 1) % self.N] - init_state[..., i - 2])
+        #         * init_state[..., i - 1]
+        #         - init_state[..., i]
+        #         + self.F
+        #     )
 
-        return D
+        return Xm1*(Xp1 - Xm2) - state + self.F
 
     def display_sim(
         self,
