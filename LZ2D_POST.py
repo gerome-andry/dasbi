@@ -214,8 +214,7 @@ def Score_train(i: int):
                 torch.cat([yb[i - window + 1 : i + 1].unsqueeze(0) for i in subset_data], dim=0),
                 tb[subset_data],
             )
-            x = x[:, None, ..., None]
-            y = y[..., None]
+            x = x[:, None, ...]
             
             optimizer.zero_grad()
             l = conv_nse.loss(x, y, t)
@@ -250,8 +249,7 @@ def Score_train(i: int):
                     torch.cat([yb[i - window + 1 : i + 1].unsqueeze(0) for i in subset_data], dim = 0),
                     tb[subset_data],
                 )
-                x = x[:, None, ..., None]
-                y = y[..., None]
+                x = x[:, None, ...]
                 
                 losses_val.append(conv_nse.loss(x, y, t))
 
