@@ -141,12 +141,12 @@ def Score_train(i: int):
 
     simt = sim(N=config["points"], M=config["points"], noise=config["noise"])
     simt.init_observer(observer)
-    simt.generate_steps(torch.randn((config["train_sim"], config["points"])), times)
+    simt.generate_steps(torch.randn((config["train_sim"], config["points"], config["points"])), times)
     process_sim(simt)
 
     simv = sim(N=config["points"], M=config["points"], noise=config["noise"])
     simv.init_observer(observer)
-    simv.generate_steps(torch.randn((config["val_sim"], config["points"])), times)
+    simv.generate_steps(torch.randn((config["val_sim"], config["points"], config["points"])), times)
     process_sim(simv)
 
     # Network
@@ -192,7 +192,6 @@ def Score_train(i: int):
         losses_val = []
 
         ### Train
-        print(simt.data.shape)
         i = np.random.choice(
             len(simt.data),
             size=batch_size,
