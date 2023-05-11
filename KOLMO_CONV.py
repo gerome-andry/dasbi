@@ -29,7 +29,7 @@ SCRATCH = os.environ.get("SCRATCH", ".")
 PATH = Path(SCRATCH) / "npe_2D/lz96"
 PATH.mkdir(parents=True, exist_ok=True)
 
-fact = 1
+fact = 5
 N_grid = [2**i for i in range(5,6)]
 Y_grid = [int(np.ceil(x/6)) for x in N_grid]
 lN = len(N_grid)
@@ -276,7 +276,7 @@ def Score_train(i: int):
             optimizer.zero_grad()
             l = conv_nse.loss(x, y, t)
             l.backward()
-            norm = torch.nn.utils.clip_grad_norm_(conv_nse.embed.parameters(), 1)
+            norm = torch.nn.utils.clip_grad_norm_(conv_nse.parameters(), 1)
             if torch.isfinite(norm):
                 optimizer.step()
             
@@ -325,7 +325,7 @@ def Score_train(i: int):
             # plt.close()
             if epoch %10:
                 samp = conv_nse.sample(obs[None,...], tm[None,...], 1).squeeze(0)
-                obs_samp = simv.observe(samp)
+                obs_samp = simv.observe(samp.cpu())
                 samp = vorticity(samp).squeeze()
                 plt.imshow(samp.cpu(), cmap=col)
                 plt.title('SAMPLE')

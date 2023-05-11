@@ -29,7 +29,7 @@ SCRATCH = os.environ.get("SCRATCH", ".")
 PATH = Path(SCRATCH) / "nse_2D/lz96"
 PATH.mkdir(parents=True, exist_ok=True)
 
-fact = 1
+fact = 4
 N_grid = [2**i for i in range(5,6)]
 Y_grid = [int(np.ceil(x/6)) for x in N_grid]
 lN = len(N_grid)
