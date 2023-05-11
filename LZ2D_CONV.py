@@ -253,7 +253,7 @@ def Score_train(i: int):
                 
                 losses_val.append(conv_nse.loss(x, y, t))
 
-            gt, obs, tm = simv.data[0,traj_len//2],\
+            gt, obs, time = simv.data[0,traj_len//2],\
                             simv.obs[0,traj_len//2-window+1:traj_len//2 + 1],\
                             simv.time[0,traj_len//2]
             col = sns.color_palette("icefire", as_cmap=True)
@@ -265,7 +265,7 @@ def Score_train(i: int):
             # plt.title('GT obs')
             # run.log({"GT observation" : wandb.Image(plt)})
             # plt.close()
-            samp = conv_nse.sample(obs[None, None,...], tm[None,...], 1).squeeze()
+            samp = conv_nse.sample(obs[None, None,...], time[None,...], 1).squeeze()
             plt.imshow(samp, cmap=col)
             plt.title('SAMPLE')
             run.log({"Sampled state" : wandb.Image(plt)})
