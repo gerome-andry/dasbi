@@ -49,7 +49,7 @@ CONFIG = {
     "batch_size": [512]*lN,
     "step_per_batch": [32]*lN,
     "optimizer": ["AdamW"]*lN,
-    "learning_rate": [1e-3]*lN,  # np.geomspace(1e-3, 1e-4).tolist(),
+    "learning_rate": [1e-5]*lN,  # np.geomspace(1e-3, 1e-4).tolist(),
     "weight_decay": [1e-4]*lN,  # np.geomspace(1e-2, 1e-4).tolist(),
     "scheduler": ["linear"]*lN,  # , 'cosine', 'exponential'],
     # Data
@@ -280,7 +280,7 @@ def Score_train(i: int):
             if torch.isfinite(norm):
                 optimizer.step()
             
-            losses_train.append(l.detach())
+                losses_train.append(l.detach())
 
         end = time.time()
 
@@ -343,31 +343,34 @@ def Score_train(i: int):
             # plt.close()
 
         ### Logs
-        loss_train = torch.stack(losses_train).mean().item()
-        loss_val = torch.stack(losses_val).mean().item()
+        if losses_train:
+            loss_train = torch.stack(losses_train).mean().item()
+            loss_val = torch.stack(losses_val).mean().item()
         
-        run.log(
-            {
-                "loss": loss_train,
-                "loss_val": loss_val,
-                "time_epoch": (end - start),
-                "lr": optimizer.param_groups[0]["lr"],
-                "plateau_buffer": count,
-                "epoch": epoch
-            }
-        )
+            run.log(
+                {
+                    "loss": loss_train,
+                    "loss_val": loss_val,
+                    "time_epoch": (end - start),
+                    "lr": optimizer.param_groups[0]["lr"],
+                    "plateau_buffer": count,
+                    "epoch": epoch
+                }
+            )
 
         ### Checkpoint
-        if (prev_loss - loss_val) > 1e-5:
-            prev_loss = loss_val
-            torch.save(
-                conv_nse.state_dict(),
-                runpath / f"checkpoint.pth",
-            )
-            count = 0
+            if (prev_loss - loss_val) > 1e-5:
+                prev_loss = loss_val
+                torch.save(
+                    conv_nse.state_dict(),
+                    runpath / f"checkpoint.pth",
+                )
+                count = 0
+            else:
+                count += 1
         else:
-            count += 1
-
+            print('skip this step')
+            
         epoch += 1
 
         if count == time_buff or epoch == max_epochs:
