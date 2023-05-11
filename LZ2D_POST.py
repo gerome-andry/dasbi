@@ -178,14 +178,14 @@ def Score_train(i: int):
 
     simt = sim(N=config["points"], M=config["points"], noise=config["noise"])
     simt.init_observer(observer)
-    simt.data = load_data('train.h5')
+    simt.data = load_data('train.h5').float()
     simt.obs = simt.observe()
     simt.time = times[None,...].repeat(config["train_sim"],1)
     process_sim(simt)
 
     simv = sim(N=config["points"], M=config["points"], noise=config["noise"])
     simv.init_observer(observer)
-    simv.data = load_data('valid.h5')
+    simv.data = load_data('valid.h5').float()
     simv.obs = simv.observe()
     simv.time = times[None,...].repeat(config["val_sim"],1)
     process_sim(simv)
