@@ -44,8 +44,7 @@ class ActNorm(Transform):
             self.log_sig[self.log_sig == 0] = 1
             self.log_sig = nn.Parameter(self.log_sig.log())
 
-        self.log_sig = self.log_sig.clamp(-5, 5)
-        z = (x - self.mu) / self.log_sig.exp()
+        z = (x - self.mu) / (self.log_sig.clamp(-5, 5)).exp()
         batch_size = x.shape[0]
         ladj = (-self.log_sig).sum() * z.new_ones(batch_size)
 
@@ -54,8 +53,7 @@ class ActNorm(Transform):
     def inverse(self, z, context=None):
         assert self.mu is not None, "Parameters not initialized (need forward pass)"
         
-        self.log_sig = self.log_sig.clamp(-5, 5)
-        x = z * (self.log_sig.exp()) + self.mu
+        x = z * ((self.log_sig.clamp(-5, 5)).exp()) + self.mu
         ladj = None
 
         return x, ladj
@@ -259,17 +257,15 @@ class AffineCoupling(Transform):
         # context contains x prev and y
         log_s, t = self.st_net(context)
 
-        log_s = log_s.clamp(-5,5)
-        z = (x + t) * log_s.exp()
+        z = (x + t) * (log_s.clamp(-5,5)).exp()
         ladj = log_s.sum((1, 2, 3))
 
         return z, ladj
 
     def inverse(self, z, context):
         log_s, t = self.st_net(context)
-        
-        log_s = log_s.clamp(-5,5)
-        x = z / (log_s.exp()) - t
+
+        x = z / ((log_s.clamp(-5,5)).exp()) - t
         ladj = None
 
         return x, ladj
