@@ -61,7 +61,7 @@ CONFIG = {
     # Test with assimilation window
     "x_dim": [(1, 2, sp, sp) for sp in N_grid],
     "y_dim": [(1, 2*window, spy, spy) for spy in Y_grid],
-    "y_dim_emb": [(1, 11, sp, 1) for sp in N_grid],
+    "y_dim_emb": [(1, 11, sp, sp) for sp in N_grid],
     'obs_mask': [True]*lN, #+1 in y_dim
     'ar': [False]*lN, #+1 in y_dim_emb (for modargs not embnet)
     'roll':[True]*lN,
@@ -93,7 +93,6 @@ def build(**config):
             observer = pickle.load(handle)
         mask = observer.get_mask().to(config['device'])
 
-    print(mask.shape)
     # exit()
     emb_out = torch.tensor(config["y_dim_emb"]) 
     if config['ar']:
@@ -151,14 +150,10 @@ def load_data(file):
         data = f['x'][:]
 
     data = torch.from_numpy(data)
-    print(data.shape)
-    print(vorticity(data).shape)
 
     data = coarsen(data)
-    print(data.shape)
 
     return data
-    # exit()
 
 @job(array=fact*lN, cpus=3, gpus=1, ram="32GB", time="5-12:00:00")
 def Score_train(i: int):
@@ -276,7 +271,6 @@ def Score_train(i: int):
                 torch.cat([(yb[i - window + 1 : i + 1].reshape(window*2, sh_y[-2], sh_y[-1])).unsqueeze(0) for i in subset_data], dim=0),
                 tb[subset_data],
             )
-            print(y.shape)
             # x = x[:, None, ...]
             
             optimizer.zero_grad()

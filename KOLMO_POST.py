@@ -146,14 +146,10 @@ def load_data(file):
         data = f['x'][:]
 
     data = torch.from_numpy(data)
-    print(data.shape)
-    print(vorticity(data).shape)
 
     data = coarsen(data)
-    print(data.shape)
 
     return data
-    # exit()
 
 @job(array=fact*lN, cpus=3, gpus=1, ram="32GB", time="5-12:00:00")
 def Score_train(i: int):
