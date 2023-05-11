@@ -1,6 +1,6 @@
 # borrowed @ francois-rozet
 
-# import h5py
+import h5py
 import json
 import torch
 import math
@@ -53,8 +53,8 @@ CONFIG = {
     "N_ms": ["score2D"]*lN,
     # Training
     # "epochs": [512]*lN,
-    "batch_size": [128]*lN,
-    "step_per_batch": [256]*lN,
+    "batch_size": [512]*lN,
+    "step_per_batch": [32]*lN,
     "optimizer": ["AdamW"]*lN,
     "learning_rate": [1e-3]*lN,  # np.geomspace(1e-3, 1e-4).tolist(),
     "weight_decay": [1e-4]*lN,  # np.geomspace(1e-2, 1e-4).tolist(),
@@ -62,13 +62,13 @@ CONFIG = {
     # Data
     "points": N_grid,
     "noise": [0.5]*lN,
-    "train_sim": [2**8]*lN,
-    "val_sim": [2**8]*lN,
+    "train_sim": [819]*lN,
+    "val_sim": [102]*lN,
     "device": ['cuda']*lN,
     # Test with assimilation window
-    "x_dim": [(1, 1, sp, sp) for sp in N_grid],
-    "y_dim": [(1, window, spy, spy) for spy in Y_grid],
-    "y_dim_emb": [(1, 11, sp, sp) for sp in N_grid],
+    "x_dim": [(1, 2, sp, sp) for sp in N_grid],
+    "y_dim": [(1, 2*window, spy, spy) for spy in Y_grid],
+    "y_dim_emb": [(1, 20, sp, sp) for sp in N_grid],
     'obs_mask': [True]*lN, #+1 in y_dim
     "observer_fp": [f"experiments/observer2D.pickle" for _ in N_grid],
 }
@@ -117,6 +117,43 @@ def process_sim(simulator):
     simulator.obs = (simulator.obs - MUY) / SIGMAY
     simulator.time = (simulator.time - MUT) / SIGMAT
 
+def vorticity(x):
+    *batch, _, h, w = x.shape
+
+    y = x.reshape(-1, 2, h, w)
+    y = torch.nn.functional.pad(y, (1, 1, 1, 1), mode='circular')
+
+    du, = torch.gradient(y[:, 0], dim=-1)
+    dv, = torch.gradient(y[:, 1], dim=-2)
+
+    y = du - dv
+    y = y[:, 1:-1, 1:-1]
+    y = y.reshape(*batch, h, w)
+
+    return y
+
+def coarsen(x, r=2):
+    *batch, h, w = x.shape
+
+    x = x.reshape(*batch, h // r, r, w // r, r)
+    x = x.mean(axis=(-3, -1))
+
+    return x
+
+def load_data(file):
+    filep = Path(SCRATCH) / file
+    with h5py.File(filep, mode='r') as f:
+        data = f['x'][:]
+
+    data = torch.from_numpy(data)
+    print(data.shape)
+    print(vorticity(data).shape)
+
+    data = coarsen(data)
+    print(data.shape)
+
+    return data
+    # exit()
 
 @job(array=fact*lN, cpus=3, gpus=1, ram="32GB", time="5-12:00:00")
 def Score_train(i: int):
@@ -135,18 +172,22 @@ def Score_train(i: int):
         json.dump(config, f)
 
     # Data
-    tmax = 50
-    traj_len = 1024 
-    times = torch.linspace(0, tmax, traj_len)
+    # tmax = 50
+    traj_len = 64 
+    times = torch.arange(traj_len)
 
     simt = sim(N=config["points"], M=config["points"], noise=config["noise"])
     simt.init_observer(observer)
-    simt.generate_steps(torch.randn((config["train_sim"], config["points"], config["points"])), times)
+    simt.data = load_data('train.h5')
+    simt.obs = simt.observe()
+    simt.time = times[None,...].repeat(config["train_sim"],1)
     process_sim(simt)
 
     simv = sim(N=config["points"], M=config["points"], noise=config["noise"])
     simv.init_observer(observer)
-    simv.generate_steps(torch.randn((config["val_sim"], config["points"], config["points"])), times)
+    simv.data = load_data('valid.h5')
+    simv.obs = simv.observe()
+    simv.time = times[None,...].repeat(config["val_sim"],1)
     process_sim(simv)
 
     # Network
@@ -208,13 +249,13 @@ def Score_train(i: int):
                 size=step_per_batch,
                 replace=False,
             )
-
+            sh_y = yb.shape
             x, y, t = (
                 xb[subset_data],
-                torch.cat([yb[i - window + 1 : i + 1].unsqueeze(0) for i in subset_data], dim=0),
+                torch.cat([(yb[i - window + 1 : i + 1].reshape(window*2, sh_y[-2], sh_y[-1])).unsqueeze(0) for i in subset_data], dim=0),
                 tb[subset_data],
             )
-            x = x[:, None, ...]
+            # x = x[:, None, ...]
             
             optimizer.zero_grad()
             l = conv_nse.loss(x, y, t)
@@ -230,7 +271,7 @@ def Score_train(i: int):
         ### Valid
         i = np.random.choice(
             len(simv.data),
-            size=batch_size//2,
+            size=batch_size//8,
             replace=False,
         )
 
@@ -244,9 +285,10 @@ def Score_train(i: int):
                     replace=False,
                 )
 
+                sh_y = yb.shape
                 x, y, t = (
                     xb[subset_data],
-                    torch.cat([yb[i - window + 1 : i + 1].unsqueeze(0) for i in subset_data], dim = 0),
+                    torch.cat([(yb[i - window + 1 : i + 1].reshape(window*2, sh_y[-2], sh_y[-1])).unsqueeze(0) for i in subset_data], dim=0),
                     tb[subset_data],
                 )
                 x = x[:, None, ...]
@@ -254,9 +296,10 @@ def Score_train(i: int):
                 losses_val.append(conv_nse.loss(x, y, t))
 
             gt, obs, tm = simv.data[0,traj_len//2].cuda(),\
-                            simv.obs[0,traj_len//2-window+1:traj_len//2 + 1].cuda(),\
+                            (simv.obs[0,traj_len//2-window+1:traj_len//2 + 1].reshape(2*window, sh_y[-2], sh_y[-1])).cuda(),\
                             simv.time[0,traj_len//2].cuda()
             col = sns.color_palette("icefire", as_cmap=True)
+            gt = vorticity(gt[None,...])
             plt.imshow(gt.cpu(), cmap=col)
             plt.title('GT')
             run.log({"GT state" : wandb.Image(plt)})
@@ -265,7 +308,8 @@ def Score_train(i: int):
             # plt.title('GT obs')
             # run.log({"GT observation" : wandb.Image(plt)})
             # plt.close()
-            samp = conv_nse.sample(obs[None,...], tm[None,...], 1).squeeze()
+            samp = conv_nse.sample(obs[None,...], tm[None,...], 1).squeeze(0)
+            samp = vorticity(samp)
             plt.imshow(samp.cpu(), cmap=col)
             plt.title('SAMPLE')
             run.log({"Sampled state" : wandb.Image(plt)})
