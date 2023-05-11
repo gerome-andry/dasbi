@@ -257,7 +257,7 @@ def Score_train(i: int):
                             simv.obs[0,traj_len//2-window+1:traj_len//2 + 1].cuda(),\
                             simv.time[0,traj_len//2].cuda()
             col = sns.color_palette("icefire", as_cmap=True)
-            plt.imshow(gt.item(), cmap=col)
+            plt.imshow(gt, cmap=col)
             plt.title('GT')
             run.log({"GT state" : wandb.Image(plt)})
             plt.close()
@@ -266,7 +266,7 @@ def Score_train(i: int):
             # run.log({"GT observation" : wandb.Image(plt)})
             # plt.close()
             samp = conv_nse.sample(obs[None,...], tm[None,...], 1).squeeze()
-            plt.imshow(samp.item(), cmap=col)
+            plt.imshow(samp, cmap=col)
             plt.title('SAMPLE')
             run.log({"Sampled state" : wandb.Image(plt)})
             plt.close()
