@@ -265,7 +265,7 @@ def Score_train(i: int):
             # plt.title('GT obs')
             # run.log({"GT observation" : wandb.Image(plt)})
             # plt.close()
-            samp = conv_nse.sample(obs[None, None,...], tm[None,...], 1).squeeze()
+            samp = conv_nse.sample(obs[None,...], tm[None,...], 1).squeeze()
             plt.imshow(samp, cmap=col)
             plt.title('SAMPLE')
             run.log({"Sampled state" : wandb.Image(plt)})
