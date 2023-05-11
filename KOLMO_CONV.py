@@ -49,7 +49,7 @@ CONFIG = {
     "batch_size": [512]*lN,
     "step_per_batch": [32]*lN,
     "optimizer": ["AdamW"]*lN,
-    "learning_rate": [1e-5]*lN,  # np.geomspace(1e-3, 1e-4).tolist(),
+    "learning_rate": [1e-3]*lN,  # np.geomspace(1e-3, 1e-4).tolist(),
     "weight_decay": [1e-4]*lN,  # np.geomspace(1e-2, 1e-4).tolist(),
     "scheduler": ["linear"]*lN,  # , 'cosine', 'exponential'],
     # Data

@@ -272,7 +272,7 @@ def Score_train(i: int):
             optimizer.zero_grad()
             l = conv_nse.loss(x, y, t)
             l.backward()
-            norm = torch.nn.utils.clip_grad_norm_(conv_nse.embed.parameters(), 1)
+            norm = torch.nn.utils.clip_grad_norm_(conv_nse.parameters(), 1)
             if torch.isfinite(norm):
                 optimizer.step()
             
