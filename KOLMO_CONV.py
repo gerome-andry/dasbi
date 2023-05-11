@@ -156,7 +156,7 @@ def load_data(file):
     return data
 
 @job(array=fact*lN, cpus=3, gpus=1, ram="32GB", time="5-12:00:00")
-def Score_train(i: int):
+def CONV_train(i: int):
     # config = {key: random.choice(values) for key, values in CONFIG.items()}
     config = {key : values[i%lN] for key,values in CONFIG.items()}
 
@@ -323,7 +323,7 @@ def Score_train(i: int):
             # plt.title('GT obs')
             # run.log({"GT observation" : wandb.Image(plt)})
             # plt.close()
-            if epoch %10:
+            if epoch %10 == 0:
                 samp = conv_nse.sample(obs[None,...], tm[None,...], 1).squeeze(0)
                 obs_samp = simv.observe(samp.cpu())
                 samp = vorticity(samp).squeeze()
@@ -383,7 +383,7 @@ def Score_train(i: int):
 
 if __name__ == "__main__":
     schedule(
-        Score_train,
+        CONV_train,
         name="LZ2D_train",
         backend="slurm",
         settings={"export": "ALL"},
