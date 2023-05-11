@@ -323,7 +323,7 @@ def CONV_train(i: int):
             # plt.title('GT obs')
             # run.log({"GT observation" : wandb.Image(plt)})
             # plt.close()
-            if epoch %10 == 0:
+            if (epoch+1) %100 == 0:
                 samp = conv_nse.sample(obs[None,...], tm[None,...], 1).squeeze(0)
                 obs_samp = simv.observe(samp.cpu())
                 samp = vorticity(samp).squeeze()
