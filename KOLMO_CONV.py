@@ -82,12 +82,12 @@ def build(**config):
     N = config["points"]
     base = Unconditional(
         DiagNormal,
-        torch.zeros(N*N),
-        torch.ones(N*N),
+        torch.zeros(2*N*N),
+        torch.ones(2*N*N),
         buffer=True,
     )
 
-    mask = None
+    mask = None 
     if config['obs_mask']:
         with open(config["observer_fp"], "rb") as handle:
             observer = pickle.load(handle)
