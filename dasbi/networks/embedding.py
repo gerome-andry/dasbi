@@ -31,7 +31,7 @@ class EmbedObs(nn.Module):
         if y_emb.isnan().sum() > 0:
             print("UP",y_emb.isnan().sum())
             y_emb = y_emb.nan_to_num()
-
+        
         if self.obs is not None:
             mask = self.obs[None, None, ...].expand(b, -1, -1, -1)
             y_emb = torch.cat((y_emb,mask), dim = 1)
