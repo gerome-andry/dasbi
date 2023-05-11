@@ -299,7 +299,7 @@ def Score_train(i: int):
                             (simv.obs[0,traj_len//2-window+1:traj_len//2 + 1].reshape(2*window, sh_y[-2], sh_y[-1])).cuda(),\
                             simv.time[0,traj_len//2].cuda()
             col = sns.color_palette("icefire", as_cmap=True)
-            gt = vorticity(gt[None,...])
+            gt = vorticity(gt[None,...]).squeeze()
             plt.imshow(gt.cpu(), cmap=col)
             plt.title('GT')
             run.log({"GT state" : wandb.Image(plt)})
@@ -309,7 +309,7 @@ def Score_train(i: int):
             # run.log({"GT observation" : wandb.Image(plt)})
             # plt.close()
             samp = conv_nse.sample(obs[None,...], tm[None,...], 1).squeeze(0)
-            samp = vorticity(samp)
+            samp = vorticity(samp).squeeze()
             plt.imshow(samp.cpu(), cmap=col)
             plt.title('SAMPLE')
             run.log({"Sampled state" : wandb.Image(plt)})
