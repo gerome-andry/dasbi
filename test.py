@@ -20,7 +20,7 @@ if __name__ == "__main__":
     #     pickle.dump(o, handle, protocol=pickle.HIGHEST_PROTOCOL)
     s.init_observer(o)
     t = torch.linspace(0,50,1024)
-    x0 = torch.randn((512,32, 32))
+    x0 = torch.randn((1,32, 32))
     # x0[:,:,:] = 0
     # x0[:,15,15] = torch.rand(1)
     tm = time.time()

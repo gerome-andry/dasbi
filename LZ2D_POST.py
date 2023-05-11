@@ -9,7 +9,7 @@ import numpy as np
 import os
 import pickle
 import random
-import seaborn
+import seaborn as sns
 import time
 import wandb
 
@@ -252,6 +252,28 @@ def Score_train(i: int):
                 x = x[:, None, ...]
                 
                 losses_val.append(conv_nse.loss(x, y, t))
+
+            gt, obs, time = simv.data[0,traj_len//2],\
+                            simv.obs[0,traj_len//2-window+1:traj_len//2 + 1],\
+                            simv.time[0,traj_len//2]
+            col = sns.color_palette("icefire", as_cmap=True)
+            plt.imshow(gt, cmap=col)
+            plt.title('GT')
+            run.log({"GT state" : wandb.Image(plt)})
+            plt.close()
+            # plt.imshow(obs[-1], cmap=col)
+            # plt.title('GT obs')
+            # run.log({"GT observation" : wandb.Image(plt)})
+            # plt.close()
+            samp = conv_nse.sample(obs[None, None,...], time[None,...], 1).squeeze()
+            plt.imshow(samp, cmap=col)
+            plt.title('SAMPLE')
+            run.log({"Sampled state" : wandb.Image(plt)})
+            plt.close()
+            # plt.imshow(gt, cmap=col)
+            # plt.title('GT')
+            # run.log({"GT state" : wandb.Image(plt)})
+            # plt.close()
 
         ### Logs
         loss_train = torch.stack(losses_train).mean().item()

@@ -53,7 +53,7 @@ class VPScorePosterior(nn.Module):
         # return (scaled_target - 
         #         self.score(torch.cat((y_emb, x), dim = 1).flatten(start_dim = 1), noise_t).reshape(dims)).square().mean()
 
-    def sample(self, y, t, n, steps = 128, x_ref = None):
+    def sample(self, y, t, n, steps = 100, x_ref = None):
         denoise_time = torch.linspace(1,0,steps + 1).to(y)
         y_emb = self.embed(y, t)
         y_shapes = y_emb.shape
