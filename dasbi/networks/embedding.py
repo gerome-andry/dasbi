@@ -34,6 +34,7 @@ class EmbedObs(nn.Module):
         
         if self.obs is not None:
             mask = self.obs[None, None, ...].expand(b, -1, -1, -1)
+            print(y_emb.shape, mask.shape)
             y_emb = torch.cat((y_emb,mask), dim = 1)
         
         y_emb = self.act(self.combine[0](y_emb))
