@@ -20,7 +20,7 @@ from typing import *
 
 from zuko.distributions import DiagNormal
 from zuko.flows import Unconditional
-from dasbi.inference.models import VPScorePosterior as NSE
+from dasbi.inference.models import ConvNPE as NPE
 from dasbi.networks.embedding import EmbedObs
 from dasbi.simulators.sim_2D import LZ2D as sim
 
@@ -36,21 +36,14 @@ lN = len(N_grid)
 window = 10
 max_epochs = 2048
 
-dp = {
-    8 : 2,
-    16 : 2,
-    32 : 2,
-    64 : 3,
-    128 : 3,
-    256 : 4
-}
 
 CONFIG = {
     # Architecture
     "embedding": [3]*lN,
-    "depth": [3]*lN,
-    "input_h": [64]*lN,
-    "N_ms": ["score2D"]*lN,
+    "kernel_size": [3]*lN,
+    "ms_modules": [4]*lN,
+    "num_conv": [3]*lN,
+    "N_ms": [3],
     # Training
     # "epochs": [512]*lN,
     "batch_size": [512]*lN,
@@ -68,23 +61,31 @@ CONFIG = {
     # Test with assimilation window
     "x_dim": [(1, 2, sp, sp) for sp in N_grid],
     "y_dim": [(1, 2*window, spy, spy) for spy in Y_grid],
-    "y_dim_emb": [(1, 20, sp, sp) for sp in N_grid],
+    "y_dim_emb": [(1, 11, sp, 1) for sp in N_grid],
     'obs_mask': [True]*lN, #+1 in y_dim
-    "observer_fp": [f"experiments/observer2D.pickle" for _ in N_grid],
+    'ar': [False]*lN, #+1 in y_dim_emb (for modargs not embnet)
+    'roll':[True]*lN,
+    "observer_fp": [f"experiments/observer2D.pickle" for N in N_grid],
 }
 
 
 def build(**config):
     mod_args = {
-        "input_c": 2*config["y_dim_emb"][1], #try with better state ! 
-        "output_c": config["x_dim"][1],
-        "depth": config["depth"],
-        "input_hidden": config["input_h"],
+        "x_dim": torch.tensor(config["x_dim"]),
+        "y_dim": torch.tensor(config["y_dim_emb"]),
+        "n_modules": config["ms_modules"],
+        "n_c": config["num_conv"],
+        "k_sz": torch.tensor((config["kernel_size"], config["kernel_size"])),
         "type": "2D",
-        'n_c': 4,
-        # "in_d":torch.tensor(config["x_dim"]).prod() + torch.tensor(config["y_dim_emb"]).prod(),
-        # 'out_d': torch.tensor(config["x_dim"]).prod()
     }
+
+    N = config["points"]
+    base = Unconditional(
+        DiagNormal,
+        torch.zeros(N*N),
+        torch.ones(N*N),
+        buffer=True,
+    )
 
     mask = None
     if config['obs_mask']:
@@ -93,6 +94,8 @@ def build(**config):
         mask = observer.get_mask().to(config['device'])
 
     emb_out = torch.tensor(config["y_dim_emb"]) 
+    if config['ar']:
+        emb_out[1] -= 1
 
     emb_net = EmbedObs(
         torch.tensor(config["y_dim"]),
@@ -100,7 +103,7 @@ def build(**config):
         conv_lay=config["embedding"],
         observer_mask=mask
     )
-    return NSE(emb_net, state_dim=config["x_dim"], targ_c = config["y_dim_emb"][1], **mod_args)
+    return NPE(config["N_ms"], base, emb_net, mod_args, roll = config["roll"], ar=config["ar"])
 
 
 def process_sim(simulator):
