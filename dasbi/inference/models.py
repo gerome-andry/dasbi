@@ -265,5 +265,5 @@ class ConvNPE(nn.Module):
     def loss(self, x, y, t, x_ar = None):
         z, ladj = self.forward(x, y, t, x_ar=x_ar)
         z = z.reshape((z.shape[0], -1))
-        z.clamp(-10,10)
+        z.clamp(-3,3)
         return -(ladj + self.base_dist().log_prob(z)).mean()
