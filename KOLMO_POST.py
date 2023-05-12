@@ -117,6 +117,11 @@ def process_sim(simulator):
     simulator.obs = (simulator.obs - MUY) / SIGMAY
     simulator.time = (simulator.time - MUT) / SIGMAT
 
+    ret_ls = [MUX, SIGMAX, MUY, SIGMAY, MUT, SIGMAT]
+    ret_ls = [x.to(CONFIG['device'][0]) for x in ret_ls]
+
+    return ret_ls
+
 def vorticity(x):
     *batch, _, h, w = x.shape
 
@@ -177,7 +182,7 @@ def Score_train(i: int):
     simt.data = load_data('train.h5')
     simt.obs = simt.observe()
     simt.time = times[None,...].repeat(config["train_sim"],1)
-    process_sim(simt)
+    mx, sx, _, _, mt, st = process_sim(simt)
 
     simv = sim(N=config["points"], M=config["points"], noise=config["noise"])
     simv.init_observer(observer)
@@ -252,7 +257,10 @@ def Score_train(i: int):
         )
 
         start = time.time()
-
+        simt.data = simt.data*sx + mx
+        simt.obs = simt.observe()
+        simt.time = simt.time*st + mt
+        process_sim(simt)
         for xb, yb, tb in zip(
             simt.data[i].cuda(), simt.obs[i].cuda(), simt.time[i].cuda()
         ):
