@@ -112,14 +112,15 @@ class VPScoreLinear(nn.Module):
     
     def composed_rscore(self, st, x, y, noise_t, scales):
         # t_emb = self.embed(t, x.shape[-2:])
-        s_m = self.score(torch.cat((st,self.x_imp(x)), dim = 1), noise_t)
         mu, sigma = self.mu(noise_t[0]), self.sigma(noise_t[0])
 
         if sigma / mu > 2:
+            s_m = self.score(torch.cat((st,self.x_imp(x)), dim = 1), noise_t)
             return s_m
         
         with torch.enable_grad():
             x = x.detach().requires_grad_(True)
+            s_m = self.score(torch.cat((st,self.x_imp(x)), dim = 1), noise_t)
 
             x_hat = (x - sigma*s_m)/mu
 
@@ -133,7 +134,7 @@ class VPScoreLinear(nn.Module):
         return s_m + sigma*s_l
 
 
-    def sample(self, y, t, n, scales, steps = 100, corr = 3, tau = .25):
+    def sample(self, y, t, n, scales, steps = 100, corr = 2, tau = .5):
         denoise_time = torch.linspace(1,0,steps + 1).to(y)
         t_emb = self.embed(t, self.x_dim[-2:])
         s_emb = self.s_emb.expand(y.shape[0],-1,-1,-1)#deal with dim
