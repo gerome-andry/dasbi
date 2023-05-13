@@ -156,7 +156,7 @@ def load_data(file):
 
     return data
 
-@job(array=fact*lN, cpus=3, gpus=1, ram="32GB", time="5-12:00:00")
+@job(array=fact*lN, cpus=3, gpus=1, ram="32GB", time="1-12:00:00")
 def Score_train(i: int):
     # config = {key: random.choice(values) for key, values in CONFIG.items()}
     config = {key : values[i%lN] for key,values in CONFIG.items()}
