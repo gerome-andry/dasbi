@@ -26,6 +26,7 @@ from dasbi.simulators.sim_2D import LZ2D as sim
 
 
 SCRATCH = os.environ.get("HOME", ".")
+DATA = os.environ.get("SCRATCH", ".")
 PATH = Path(SCRATCH) / "nse_2D/lz96"
 PATH.mkdir(parents=True, exist_ok=True)
 
@@ -146,7 +147,7 @@ def coarsen(x, r=2):
     return x
 
 def load_data(file):
-    filep = Path(SCRATCH) / file
+    filep = Path(DATA) / file
     with h5py.File(filep, mode='r') as f:
         data = f['x'][:]
 
