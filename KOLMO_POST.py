@@ -184,6 +184,10 @@ def Score_train(i: int):
     simt.obs = simt.observe()
     simt.time = times[None,...].repeat(config["train_sim"],1)
     mx, sx, _, _, mt, st = process_sim(simt)
+    mx = mx.cpu()
+    sx = sx.cpu()
+    mt = mt.cpu()
+    st = st.cpu()
 
     simv = sim(N=config["points"], M=config["points"], noise=config["noise"])
     simv.init_observer(observer)
