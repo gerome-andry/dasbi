@@ -8,7 +8,7 @@ import torch
 
 from tqdm import tqdm
 
-from LZ96_LINP import build
+from LZ96_POSTS import build
 
 # GENERATE DATA AND OBSERVATIONS
 torch.manual_seed(42)
@@ -154,7 +154,7 @@ config = {
     "hf": [32*int(N**0.5), ]*4,
     "tf": 3 + N//256,
     "depth": dp[N],
-    "input_h": chan[N],
+    "input_h": 45 + int(np.log2(N)),#chan[N],
     # Training
     "epochs": 256,
     "batch_size": 64,
@@ -220,7 +220,7 @@ plt.show()
 
 with torch.no_grad():
     x_s = (
-        model.sample(y.to(device), t.to(device), 2**10, SIGMAY)
+        model.sample(y.to(device), t.to(device), 2**10)
         .squeeze()
         .detach()
         .cpu()
@@ -272,7 +272,7 @@ if config['ar']:
 # )
 # 1 STEP :
 y = y.unsqueeze(1)
-samp = model.sample(y.to(device), t.to(device), 16, SIGMAY).squeeze().detach().cpu()
+samp = model.sample(y.to(device), t.to(device), 16).squeeze().detach().cpu()
 # print(samp.shape)
 y_samp = simulator.observe(postprocess_x(samp)).mean((0))
 samp = samp[0] #.mean(0)
