@@ -114,9 +114,9 @@ class VPScoreLinear(nn.Module):
         # t_emb = self.embed(t, x.shape[-2:])
         mu, sigma = self.mu(noise_t[0]), self.sigma(noise_t[0])
 
-        if sigma / mu > 2:
-            s_m = self.score(torch.cat((st,self.x_imp(x)), dim = 1), noise_t)
-            return s_m
+        # if sigma / mu > 2:
+        #     s_m = self.score(torch.cat((st,self.x_imp(x)), dim = 1), noise_t)
+        #     return s_m
         
         with torch.enable_grad():
             x = x.detach().requires_grad_(True)
