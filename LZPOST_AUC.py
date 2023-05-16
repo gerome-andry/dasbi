@@ -149,11 +149,6 @@ def train_class(i: int):
     # modelfname = "experiments/test/test.pth"
     state = torch.load(f"{modelfname}", map_location=torch.device(config['device']))
 
-    with torch.no_grad():
-        sampler(torch.zeros(config["x_dim"]).to(config['device']), 
-                torch.zeros(config["y_dim"]).to(config['device']), 
-                torch.zeros(1).to(config['device']))
-        # forward pass to init parameters
     sampler.load_state_dict(state)
     sampler.eval()
 
