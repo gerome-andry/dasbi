@@ -50,7 +50,7 @@ CONFIG = {
     "input_h": [45 + int(np.log2(k)) for k in N_grid],
     "N_ms": ["score"]*lN,
     # Training
-    # "epochs": [512]*lN,
+    "epochs": [512]*lN,
     "batch_size": [128]*lN,
     "step_per_batch": [512]*lN,
     "optimizer": ["AdamW"]*lN,
