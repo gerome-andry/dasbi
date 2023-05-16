@@ -154,7 +154,7 @@ def train_class(i: int):
     # Sampler 
     sampler = buildSampler(**config).to(config['device'])
     pts = config["points"]
-    modelfname = f"../checkpoints/LZ/CONV/{gr}/{pts}/{run_idx}.pth"
+    modelfname = f"../checkpoints/LZ/SCORE_LIN/{gr}/{pts}/{run_idx}.pth"
     # modelfname = "experiments/test/test.pth"
     state = torch.load(f"{modelfname}", map_location=torch.device(config['device']))
 
