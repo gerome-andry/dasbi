@@ -57,7 +57,7 @@ CONFIG = {
     "embedding": [3]*lN,
     "depth": [dp[k] for k in N_grid],
     "input_h": [chan[k] for k in N_grid],
-    "N_ms": ["score"]*lN,
+    "N_ms": ["score_lin"]*lN,
     # Training
     "epochs": [512]*lN,
     "batch_size": [128]*lN,
