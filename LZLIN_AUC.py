@@ -102,7 +102,7 @@ def process_sim(simulator, x = True, y = True, t = True):
 
     return ret_ls
 
-@job(array=5*lN*2, cpus=2, gpus=1, ram="32GB", time="2-10:00:00")
+@job(array=5*lN*2, cpus=2, gpus=1, ram="32GB", time="4-10:00:00")
 def train_class(i: int):
     # config = {key: random.choice(values) for key, values in CONFIG.items()}
     y_mode = (i%10) >= 5
