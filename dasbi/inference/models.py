@@ -64,7 +64,7 @@ class VPScorePosterior(nn.Module):
         sample_sz[0] = n*y_shapes[0]
         x = torch.randn(sample_sz).to(y)
 
-        for t_n in tqdm(denoise_time[:-1]):
+        for t_n in denoise_time[:-1]:
             score_tn = t_n.unsqueeze(0).repeat(n*y_shapes[0])
             ratio = self.mu(t_n-dt)/self.mu(t_n)
             s = self.score(torch.cat((y_emb, self.x_imp(x)), dim = 1), score_tn)
@@ -151,7 +151,7 @@ class VPScoreLinear(nn.Module):
         sample_sz[0] = n*st_shapes[0]
         x = torch.randn(sample_sz).to(y)
 
-        for t_n in tqdm(denoise_time[:-1]):
+        for t_n in denoise_time[:-1]:
             score_tn = t_n.unsqueeze(0).repeat(n*st_shapes[0])
             ratio = self.mu(t_n-dt)/self.mu(t_n)
             s = self.composed_rscore(st_emb, x, y, score_tn, scales) #USE COMPOSED SCORE !!
