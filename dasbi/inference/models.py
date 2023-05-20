@@ -134,7 +134,7 @@ class VPScoreLinear(nn.Module):
         return s_m + sigma*s_l
 
 
-    def sample(self, y, t, n, scales, steps = 100, corr = 2, tau = .5):
+    def sample(self, y, t, n, scales, steps = 100, corr = 1, tau = .5):
         denoise_time = torch.linspace(1,0,steps + 1).to(y)
         t_emb = self.embed(t, self.x_dim[-2:])
         s_emb = self.s_emb.expand(y.shape[0],-1,-1,-1)#deal with dim
