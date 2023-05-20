@@ -285,7 +285,7 @@ def train_class(i: int):
                 lg = len(t)
                 
                 y = y[..., None]
-                x_fake = sampler.sample(y[lg//2:], t[lg//2:], 1).squeeze()
+                x_fake = sampler.sample(y[lg//2:], t[lg//2:], 1, svy).squeeze()
                 x[lg//2:] = x_fake
                 if y_mode:
                     x = (simv.observe((x*svx + mvx).cpu()).to(config['device'])-mvy)/svy
