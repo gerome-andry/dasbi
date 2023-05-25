@@ -8,7 +8,7 @@ import torch
 
 from tqdm import tqdm
 
-from LZ96_POSTS import build
+from LZ96_LINP import build
 
 # GENERATE DATA AND OBSERVATIONS
 torch.manual_seed(42)
@@ -34,7 +34,7 @@ class myMOD(torch.nn.Module):
 # exit()
 
 n_sim = 2**10
-N = 8
+N = 16
 directory = "test"
 modelfname = f"experiments/{directory}/test.pth"
 observerfname = f"observer{N}LZ.pickle"
