@@ -214,7 +214,7 @@ def train_class(i: int):
             # x_fake = model.sample...
             y = y[..., None]
             with torch.no_grad():
-                x_fake = sampler.sample(y[step_per_batch//2:], t[step_per_batch//2:], 1, sy).squeeze()
+                x_fake = sampler.sample(y[step_per_batch//2:], t[step_per_batch//2:], 1, [mx,sx,my,sy]).squeeze()
     
             x = torch.cat((x,x_fake), dim = 0)
             if y_mode:
@@ -264,7 +264,7 @@ def train_class(i: int):
                 # ADD HERE SAMPLES FOR NEG
                 # x_fake = model.sample...
                 y = y[..., None]
-                x_fake = sampler.sample(y[step_per_batch//2:], t[step_per_batch//2:], 1, svy).squeeze()
+                x_fake = sampler.sample(y[step_per_batch//2:], t[step_per_batch//2:], 1, [mvx,svx,mvy,svy]).squeeze()
                 x = torch.cat((x,x_fake), dim = 0)
                 if y_mode:
                     x = (simv.observe((x*svx + mvx).cpu()).to(config['device'])-mvy)/svy
@@ -285,7 +285,7 @@ def train_class(i: int):
                 lg = len(t)
                 
                 y = y[..., None]
-                x_fake = sampler.sample(y[lg//2:], t[lg//2:], 1, svy).squeeze()
+                x_fake = sampler.sample(y[lg//2:], t[lg//2:], 1, [mvx,svx,mvy,svy]).squeeze()
                 x[lg//2:] = x_fake
                 if y_mode:
                     x = (simv.observe((x*svx + mvx).cpu()).to(config['device'])-mvy)/svy
