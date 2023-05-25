@@ -113,12 +113,12 @@ class VPScoreLinear(nn.Module):
     def composed_rscore(self, st, x, y, noise_t, scales):
         # t_emb = self.embed(t, x.shape[-2:])
         mux,sigmax,muy,sigmay = scales
-        _,_,h,w = x.shape
-        _,_,hy,wy = y.shape
-        mux = mux.reshape(h,w)
-        sigmax = sigmax.reshape(h,w)
-        muy = muy.reshape(hy,wy)
-        sigmay = sigmay.reshape(hy,wy)
+        _,c,h,w = x.shape
+        _,cy,hy,wy = y.shape
+        mux = mux.reshape(c,h,w)
+        sigmax = sigmax.reshape(c,h,w)
+        muy = muy.reshape(cy,hy,wy)
+        sigmay = sigmay.reshape(cy,hy,wy)
 
         mu, sigma = self.mu(noise_t[0]), self.sigma(noise_t[0])
 
