@@ -88,7 +88,6 @@ class VPScoreLinear(nn.Module):
         self.embed = TimeEmb(5)
         self.gam = gamma
         self.register_buffer('s_emb', pos_embed(self.x_dim[-2:]))
-        self.register_buffer('A', self.obs.get_Obs_mat())
 
     def mu(self, t):
         return self.alpha(t)
@@ -138,7 +137,7 @@ class VPScoreLinear(nn.Module):
             device = x_hat.device
             # x_hat = self.obs.observe(x_hat.cpu()).to(device)
 
-            A = self.A.to(device)
+            A = self.obs.get_Obs_mat().to(device)
             
             b,c,hy,wy = y.shape
             # x of the form (B, C, H, W)
