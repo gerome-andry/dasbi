@@ -62,7 +62,7 @@ class VPScorePosterior(nn.Module):
 
         sample_sz = list(self.x_dim)
         sample_sz[0] = n*y_shapes[0]
-        x = torch.randn(sample_sz).to(y)
+        x = torch.randn(sample_sz).to(y) + self.epsilon
 
         for t_n in denoise_time[:-1]:
             score_tn = t_n.unsqueeze(0).repeat(n*y_shapes[0])
@@ -149,7 +149,7 @@ class VPScoreLinear(nn.Module):
 
         sample_sz = list(self.x_dim)
         sample_sz[0] = n*st_shapes[0]
-        x = torch.randn(sample_sz).to(y)
+        x = torch.randn(sample_sz).to(y) + self.epsilon
 
         for t_n in denoise_time[:-1]:
             score_tn = t_n.unsqueeze(0).repeat(n*st_shapes[0])
