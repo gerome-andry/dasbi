@@ -112,6 +112,14 @@ class VPScoreLinear(nn.Module):
     
     def composed_rscore(self, st, x, y, noise_t, scales):
         # t_emb = self.embed(t, x.shape[-2:])
+        mux,sigmax,muy,sigmay = scales
+        _,_,h,w = x.shape
+        _,_,hy,wy = y.shape
+        mux = mux.reshape(h,w)
+        sigmax = sigmax.reshape(h,w)
+        muy = muy.reshape(hy,wy)
+        sigmay = sigmay.reshape(hy,wy)
+
         mu, sigma = self.mu(noise_t[0]), self.sigma(noise_t[0])
 
         # if sigma / mu > 2:
@@ -123,11 +131,28 @@ class VPScoreLinear(nn.Module):
             s_m = self.score(torch.cat((st,self.x_imp(x)), dim = 1), noise_t)
 
             x_hat = (x - sigma*s_m)/mu
+            #rescale
+            x_hat = x_hat*sigmax + mux
 
             device = x_hat.device
-            x_hat = self.obs.observe(x_hat.cpu()).to(device)
+            # x_hat = self.obs.observe(x_hat.cpu()).to(device)
+
+            A = self.obs.get_Obs_mat().to(device)
             
-            var = (self.noise_sig/scales)**2 + self.gam*(sigma/mu)**2
+            b,c,hy,wy = y.shape
+            # x of the form (B, C, H, W)
+            #flatten space -> (B,C,H*W)
+            x_hat = x_hat.flatten(start_dim = -2)
+            #permute for batched multiply -> (B,H*W,C)
+            x_hat = x_hat.permute((0,2,1)) 
+            #observe -> (B,Hy*Wy,C)
+            x_hat = A@x_hat 
+            x_hat = x_hat.permute((0,2,1)).reshape((b,c,hy,wy))
+            #renormalize
+            x_hat = (x_hat - muy)/sigmay
+
+            
+            var = (self.noise_sig/sigmay)**2 + self.gam*(sigma/mu)**2
             mlogp = (((y - x_hat)**2)/var).sum()/2
 
         s_l, = torch.autograd.grad(mlogp, x)
@@ -158,13 +183,22 @@ class VPScoreLinear(nn.Module):
 
             x = ratio*x + (self.sigma(t_n - dt) - 
                            ratio*self.sigma(t_n))*s
-            
+            # plt.clf()
+            # plt.plot(x[0].squeeze())
+            # plt.title(f'Prediction {t_n}')
+            # plt.show(block = False)
+            # plt.pause(.001)
             for _ in range(corr):
                 eps = torch.randn_like(x)
                 s = -self.composed_rscore(st_emb, x, y, score_tn - dt, scales) / self.sigma(t_n - dt)
                 delta = tau / s.square().mean(dim=(1,2,3), keepdim=True)
 
                 x = x + delta * s + torch.sqrt(2 * delta) * eps
+                # plt.clf()
+                # plt.plot(x[0].squeeze())
+                # plt.title('Correction')
+                # plt.show(block = False)
+                # plt.pause(.1)
             # plt.clf()
             # plt.imshow(x.squeeze().item())
             # plt.show(block = False)

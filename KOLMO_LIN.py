@@ -186,7 +186,7 @@ def Score_train(i: int):
     simv.data = load_data('valid.h5')
     simv.obs = simv.observe()
     simv.time = times[None,...].repeat(config["val_sim"],1)
-    _, _, _, svy, _, _ = process_sim(simv)
+    mvx, svx, mvy, svy, _, _ = process_sim(simv)
 
     col = sns.color_palette("icefire", as_cmap=True)
 
@@ -325,7 +325,7 @@ def Score_train(i: int):
             # run.log({"GT observation" : wandb.Image(plt)})
             # plt.close()
             if epoch %10 == 0:
-                samp = conv_nse.sample(obs[None,...], tm[None,...], 1, svy).squeeze(0)
+                samp = conv_nse.sample(obs[None,...], tm[None,...], 1, [mvx,svx,mvy,svy]).squeeze(0)
                 obs_samp = simv.observe(samp.cpu())
                 samp = vorticity(samp).squeeze()
                 plt.imshow(samp.cpu(), cmap=col)

@@ -45,7 +45,6 @@ with open(f"experiments/{observerfname}", "rb") as handle:
     observer = pickle.load(handle)
 simulator.init_observer(observer)
 
-
 # with open('experiments/observer32LZ.pickle', 'wb') as handle:
 #     pickle.dump(observer, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
@@ -145,16 +144,16 @@ chan = {
 
 config = {
     "embedding": 3,
-    "kernel_size": 2,
-    "ms_modules": int(np.log(N)/np.log(4)) if N >= 128 else 1,
-    "N_ms": nms_dict[N],
-    "ms_modules": 1 + N//256,
-    "num_conv": 2,
-    "N_ms": 2 + N//128,
-    "hf": [32*int(N**0.5), ]*4,
-    "tf": 3 + N//256,
+    # "kernel_size": 2,
+    # "ms_modules": int(np.log(N)/np.log(4)) if N >= 128 else 1,
+    # "N_ms": nms_dict[N],
+    # "ms_modules": 1 + N//256,
+    # "num_conv": 2,
+    # "N_ms": 2 + N//128,
+    # "hf": [32*int(N**0.5), ]*4,
+    # "tf": 3 + N//256,
     "depth": dp[N],
-    "input_h": 45 + int(np.log2(N)),#chan[N],
+    "input_h": chan[N],
     # Training
     "epochs": 256,
     "batch_size": 64,
@@ -220,7 +219,7 @@ plt.show()
 
 with torch.no_grad():
     x_s = (
-        model.sample(y.to(device), t.to(device), 2**10)
+        model.sample(y.to(device), t.to(device), 2**10, [MUX,SIGMAX,MUY,SIGMAY])
         .squeeze()
         .detach()
         .cpu()
@@ -253,6 +252,7 @@ mark_point(fig, y_star)
 fig.savefig(f"experiments/{directory}/cornerNPEObs.pdf")
 fig.clear()
 
+exit()
 # EVALUATE TRAJECTORY
 
 xgt, ygt, tgt = simulator.data[0], simulator.obs[0], simulator.time[0]
