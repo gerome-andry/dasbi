@@ -214,8 +214,8 @@ t = t.unsqueeze(-1)
 #     x_ar = simulator.data[0, window - 2]
 #     x_ar = x_ar[None, None, :, None].to(device)
 
-plt.plot(x.squeeze())
-plt.show()
+# plt.plot(x.squeeze())
+# plt.show()
 
 with torch.no_grad():
     x_s = (
@@ -252,7 +252,7 @@ mark_point(fig, y_star)
 fig.savefig(f"experiments/{directory}/cornerNPEObs.pdf")
 fig.clear()
 
-exit()
+# exit()
 # EVALUATE TRAJECTORY
 
 xgt, ygt, tgt = simulator.data[0], simulator.obs[0], simulator.time[0]
