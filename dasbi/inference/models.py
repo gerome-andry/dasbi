@@ -64,7 +64,7 @@ class VPScorePosterior(nn.Module):
         sample_sz[0] = n*y_shapes[0]
         x = torch.randn(sample_sz).to(y) + self.epsilon
 
-        for t_n in denoise_time[:-1]:
+        for t_n in tqdm(denoise_time[:-1]):
             score_tn = t_n.unsqueeze(0).repeat(n*y_shapes[0])
             ratio = self.mu(t_n-dt)/self.mu(t_n)
             s = self.score(torch.cat((y_emb, self.x_imp(x)), dim = 1), score_tn)
@@ -176,7 +176,7 @@ class VPScoreLinear(nn.Module):
         sample_sz[0] = n*st_shapes[0]
         x = torch.randn(sample_sz).to(y) + self.epsilon
 
-        for t_n in denoise_time[:-1]:
+        for t_n in tqdm(denoise_time[:-1]):
             score_tn = t_n.unsqueeze(0).repeat(n*st_shapes[0])
             ratio = self.mu(t_n-dt)/self.mu(t_n)
             s = self.composed_rscore(st_emb, x, y, score_tn, scales) #USE COMPOSED SCORE !!
@@ -280,7 +280,7 @@ class ConvNPE(nn.Module):
         t_dim = t.shape
         x_s = []
         n_iter = 1 if max_samp is None else int(np.ceil(n/max_samp))
-        for _ in range(n_iter):
+        for _ in trange(n_iter):
             ns = int(np.minimum(n, (max_samp if max_samp is not None else np.inf)))
             y_t = y.unsqueeze(0).expand(ns, -1, -1, -1, -1).reshape((-1,) + y_dim[1:])
             t_t = t.unsqueeze(0).expand(ns, -1, -1).reshape((-1,) + t_dim[1:])
