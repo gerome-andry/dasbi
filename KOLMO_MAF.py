@@ -91,7 +91,7 @@ def build(**config):
         conv_lay=config["embedding"],
         observer_mask=mask
     )
-    myNSF = NPE(N, emb_out[1]*N, build = MAF, passes = 2, hidden_features = config['hf'], transforms = config['tf'], randperm = True)
+    myNSF = NPE(N*N, emb_out[1]*N*N, build = MAF, passes = 2, hidden_features = config['hf'], transforms = config['tf'], randperm = True)
     return MafNPE(emb_net, myNSF)
 
 
