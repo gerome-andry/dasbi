@@ -137,6 +137,10 @@ def process_sim(simulator):
     simulator.obs = (simulator.obs - MUY) / SIGMAY
     simulator.time = (simulator.time - MUT) / SIGMAT
 
+    ret_ls = [MUX, SIGMAX, MUY, SIGMAY, MUT, SIGMAT]
+
+    return ret_ls
+
 @job(array=fact*lN, cpus=2, gpus=1, ram="32GB", time="3-12:00:00")
 def CONV_train(i: int):
     # config = {key: random.choice(values) for key, values in CONFIG.items()}
