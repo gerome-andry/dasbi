@@ -20,12 +20,15 @@ from typing import *
 
 from zuko.distributions import DiagNormal
 from zuko.flows import Unconditional
-from dasbi.inference.models import ConvNPE as NPE
+from lampe.inference import NPE
+from zuko.flows import MAF
+from dasbi.inference.models import MafNPE
 from dasbi.networks.embedding import EmbedObs
 from dasbi.simulators.sim_2D import LZ2D as sim
 
 
-SCRATCH = os.environ.get("SCRATCH", ".")
+SCRATCH = os.environ.get("HOME", ".")
+DATA = os.environ.get("SCRATCH", ".")
 PATH = Path(SCRATCH) / "npe_2D/lz96"
 PATH.mkdir(parents=True, exist_ok=True)
 
@@ -38,6 +41,9 @@ max_epochs = 2048
 
 
 CONFIG = {
+    "embedding": [3]*lN,
+    "hf": [[1024, 2048, 2048, 1024] for _ in N_grid],
+    "tf": [4],
     # Architecture
     "embedding": [3]*lN,
     "kernel_size": [3]*lN,
@@ -61,42 +67,23 @@ CONFIG = {
     # Test with assimilation window
     "x_dim": [(1, 2, sp, sp) for sp in N_grid],
     "y_dim": [(1, 2*window, spy, spy) for spy in Y_grid],
-    "y_dim_emb": [(1, 11, sp, sp) for sp in N_grid],
+    "y_dim_emb": [(1, 20, sp, sp) for sp in N_grid],
     'obs_mask': [True]*lN, #+1 in y_dim
     'ar': [False]*lN, #+1 in y_dim_emb (for modargs not embnet)
     'roll':[True]*lN,
-    "observer_fp": [f"experiments/observer2D.pickle" for N in N_grid],
+    "observer_fp": [f"experiments/observer2D.pickle" for _ in N_grid],
 }
 
-
 def build(**config):
-    mod_args = {
-        "x_dim": torch.tensor(config["x_dim"]),
-        "y_dim": torch.tensor(config["y_dim_emb"]),
-        "n_modules": config["ms_modules"],
-        "n_c": config["num_conv"],
-        "k_sz": torch.tensor((config["kernel_size"], config["kernel_size"])),
-        "type": "2D",
-    }
-
     N = config["points"]
-    base = Unconditional(
-        DiagNormal,
-        torch.zeros(2*N*N),
-        torch.ones(2*N*N),
-        buffer=True,
-    )
 
-    mask = None 
+    mask = None
     if config['obs_mask']:
         with open(config["observer_fp"], "rb") as handle:
             observer = pickle.load(handle)
         mask = observer.get_mask().to(config['device'])
 
-    # exit()
     emb_out = torch.tensor(config["y_dim_emb"]) 
-    if config['ar']:
-        emb_out[1] -= 1
 
     emb_net = EmbedObs(
         torch.tensor(config["y_dim"]),
@@ -104,7 +91,8 @@ def build(**config):
         conv_lay=config["embedding"],
         observer_mask=mask
     )
-    return NPE(config["N_ms"], base, emb_net, mod_args, roll = config["roll"], ar=config["ar"])
+    myNSF = NPE(N, emb_out[1]*N, build = MAF, passes = 2, hidden_features = config['hf'], transforms = config['tf'], randperm = True)
+    return MafNPE(emb_net, myNSF)
 
 
 def process_sim(simulator):
@@ -120,6 +108,11 @@ def process_sim(simulator):
     simulator.data = (simulator.data - MUX) / SIGMAX
     simulator.obs = (simulator.obs - MUY) / SIGMAY
     simulator.time = (simulator.time - MUT) / SIGMAT
+
+    ret_ls = [MUX, SIGMAX, MUY, SIGMAY, MUT, SIGMAT]
+    ret_ls = [x.to(CONFIG['device'][0]) for x in ret_ls]
+
+    return ret_ls
 
 def vorticity(x):
     *batch, _, h, w = x.shape
@@ -181,14 +174,18 @@ def CONV_train(i: int):
     simt.data = load_data('train.h5')
     simt.obs = simt.observe()
     simt.time = times[None,...].repeat(config["train_sim"],1)
-    process_sim(simt)
+    mx, sx, _, _, mt, st = process_sim(simt)
+    mx = mx.cpu()
+    sx = sx.cpu()
+    mt = mt.cpu()
+    st = st.cpu()
 
     simv = sim(N=config["points"], M=config["points"], noise=config["noise"])
     simv.init_observer(observer)
     simv.data = load_data('valid.h5')
     simv.obs = simv.observe()
     simv.time = times[None,...].repeat(config["val_sim"],1)
-    process_sim(simv)
+    mvx, svx, mvy, svy, _, _ = process_sim(simv)
 
     col = sns.color_palette("icefire", as_cmap=True)
 
@@ -231,7 +228,7 @@ def CONV_train(i: int):
         raise ValueError()
 
     if config["scheduler"] == "linear":
-        lr = lambda t: 1 - (t / (1.5*max_epochs))
+        lr = lambda t: 1 - (t / max_epochs)
     # elif config["scheduler"] == "cosine":
     #     lr = lambda t: (1 + math.cos(math.pi * t / epochs)) / 2
     # elif config["scheduler"] == "exponential":
@@ -256,7 +253,10 @@ def CONV_train(i: int):
         )
 
         start = time.time()
-
+        simt.data = simt.data*sx + mx
+        simt.obs = simt.observe()
+        simt.time = simt.time*st + mt
+        process_sim(simt)
         for xb, yb, tb in zip(
             simt.data[i].cuda(), simt.obs[i].cuda(), simt.time[i].cuda()
         ):
@@ -323,7 +323,7 @@ def CONV_train(i: int):
             # plt.title('GT obs')
             # run.log({"GT observation" : wandb.Image(plt)})
             # plt.close()
-            if (epoch+1) %100 == 0:
+            if (epoch) %10 == 0:
                 samp = conv_nse.sample(obs[None,...], tm[None,...], 1).squeeze(0)
                 obs_samp = simv.observe(samp.cpu())
                 samp = vorticity(samp).squeeze()
