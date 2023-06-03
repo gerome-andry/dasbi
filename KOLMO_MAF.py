@@ -213,7 +213,7 @@ def CONV_train(i: int):
     # epochs = config["epochs"]
     batch_size = config["batch_size"]
     step_per_batch = config["step_per_batch"]
-    best = 1000
+    best = 3000
     prev_loss = best
     time_buff = 1024
     count = 0
