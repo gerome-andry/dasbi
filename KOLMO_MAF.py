@@ -324,7 +324,7 @@ def CONV_train(i: int):
             # run.log({"GT observation" : wandb.Image(plt)})
             # plt.close()
             if (epoch) %10 == 0:
-                samp = conv_nse.sample(obs[None,...], tm[None,...], 1).squeeze(0)
+                samp = conv_nse.sample(obs[None,...], tm[None,...], 1).reshape((2,32,32))
                 obs_samp = simv.observe(samp.cpu())
                 samp = vorticity(samp).squeeze()
                 plt.imshow(samp.cpu(), cmap=col)
