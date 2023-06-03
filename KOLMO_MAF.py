@@ -138,7 +138,7 @@ def coarsen(x, r=2):
     return x
 
 def load_data(file):
-    filep = Path(SCRATCH) / file
+    filep = Path(DATA) / file
     with h5py.File(filep, mode='r') as f:
         data = f['x'][:]
 
