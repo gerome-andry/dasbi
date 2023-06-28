@@ -145,7 +145,7 @@ def load_data(file):
 
     data = torch.from_numpy(data)
 
-    data = coarsen(data)
+    # data = coarsen(data)
 
     return data
 

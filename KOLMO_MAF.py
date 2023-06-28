@@ -49,7 +49,7 @@ CONFIG = {
     "kernel_size": [3]*lN,
     "ms_modules": [4]*lN,
     "num_conv": [3]*lN,
-    "N_ms": [3],
+    "N_ms": [3], #MAFstepTAB
     # Training
     # "epochs": [512]*lN,
     "batch_size": [512]*lN,
